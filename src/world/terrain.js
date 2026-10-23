@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { C, mat } from '../core/materials.js';
 import { THEME } from '../core/palette.js';
 import { box, cyl, group, beam, rng } from '../core/geo.js';
-import { WORLD, RIVER, MAIN_STREET, POND, AVENUE, STREETS, BLOCK_X, BLOCK_Z, SIDEWALK_H } from './layout.js';
+import { WORLD, RIVER, MAIN_STREET, POND, AVENUES, STREETS, BLOCK_X, BLOCK_Z, SIDEWALK_H, PARKS } from './layout.js';
 import { rock } from './props.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -93,11 +93,15 @@ function buildStreets(root) {
   const curb = mat(C.curb);
   const white = mat('#eeeeea');
   const yellow = mat('#e8c547');
+  const rail = mat('#6d7277');
+  const onStreet = (x, pad = 0) => STREETS.some((s) => x > s.x0 - pad && x < s.x1 + pad);
+  const onAvenue = (z, pad = 0) => AVENUES.some((a) => z > a.z0 - pad && z < a.z1 + pad);
 
-  // Raised sidewalk blocks with a curb rim
+  // Raised sidewalk blocks with a curb rim (parks get grass instead)
   for (const [bx0, bx1] of BLOCK_X) {
     for (const [bz0, bz1] of BLOCK_Z) {
-      slab(root, bx0, bx1, 0, SIDEWALK_H, bz0, bz1, walk);
+      const park = PARKS.some((p) => p.x0 === bx0 && p.z0 === bz0);
+      slab(root, bx0, bx1, 0, SIDEWALK_H, bz0, bz1, park ? mat(C.grass) : walk);
       slab(root, bx0, bx1, 0, SIDEWALK_H + 0.02, bz0, bz0 + 0.3, curb);
       slab(root, bx0, bx1, 0, SIDEWALK_H + 0.02, bz1 - 0.3, bz1, curb);
       slab(root, bx0, bx0 + 0.3, 0, SIDEWALK_H + 0.02, bz0, bz1, curb);
@@ -105,39 +109,45 @@ function buildStreets(root) {
     }
   }
 
-  // Avenue centre line and lane dashes
-  slab(root, RIVER.x1 + 2, WORLD.x1, 0, 0.02, -0.12, 0.12, yellow);
-  for (let x = RIVER.x1 + 3; x < WORLD.x1; x += 4) {
-    if (STREETS.some((s) => x > s.x0 - 3 && x < s.x1 + 1)) continue;
-    for (const z of [-2, 2]) slab(root, x, x + 2, 0, 0.02, z - 0.08, z + 0.08, white);
+  // Avenue centre lines and lane dashes
+  for (const a of AVENUES) {
+    const cz = (a.z0 + a.z1) / 2;
+    slab(root, RIVER.x1 + 2, WORLD.x1, 0, 0.02, cz - 0.12, cz + 0.12, yellow);
+    if (!a.main) continue;
+    for (let x = RIVER.x1 + 3; x < WORLD.x1; x += 4) {
+      if (onStreet(x, 3)) continue;
+      for (const z of [-2, 2]) slab(root, x, x + 2, 0, 0.02, z - 0.08, z + 0.08, white);
+    }
   }
   // Street dashes
   for (const s of STREETS) {
     const cx = (s.x0 + s.x1) / 2;
     for (let z = WORLD.z0 + 1; z < WORLD.z1; z += 4) {
-      if (z > AVENUE.z0 - 3 && z < AVENUE.z1 + 1) continue;
+      if (onAvenue(z, 3)) continue;
       slab(root, cx - 0.08, cx + 0.08, 0, 0.02, z, z + 2, white);
     }
   }
 
   // Zebra crossings around each intersection
-  for (const s of STREETS) {
-    for (const zEdge of [AVENUE.z0 - 2.2, AVENUE.z1 + 0.4]) {
-      for (let x = s.x0 + 0.4; x < s.x1 - 0.3; x += 0.9) slab(root, x, x + 0.5, 0, 0.025, zEdge, zEdge + 1.8, white);
-    }
-    for (const xEdge of [s.x0 - 2.2, s.x1 + 0.4]) {
-      for (let z = AVENUE.z0 + 0.4; z < AVENUE.z1 - 0.3; z += 0.9) slab(root, xEdge, xEdge + 1.8, 0, 0.025, z, z + 0.5, white);
+  for (const a of AVENUES) {
+    for (const s of STREETS) {
+      for (const zEdge of [a.z0 - 2.2, a.z1 + 0.4]) {
+        for (let x = s.x0 + 0.4; x < s.x1 - 0.3; x += 0.9) slab(root, x, x + 0.5, 0, 0.025, zEdge, zEdge + 1.8, white);
+      }
+      for (const xEdge of [s.x0 - 2.2, s.x1 + 0.4]) {
+        for (let z = a.z0 + 0.4; z < a.z1 - 0.3; z += 0.9) slab(root, xEdge, xEdge + 1.8, 0, 0.025, z, z + 0.5, white);
+      }
     }
   }
 
-  // Riverside promenade on the east bank
+  // Riverside promenade on the east bank, railing broken where avenues meet the river
   slab(root, RIVER.x1, RIVER.x1 + 2, 0, SIDEWALK_H, WORLD.z0, WORLD.z1, walk);
   for (let z = WORLD.z0 + 0.5; z < WORLD.z1; z += 2) {
-    if (z > AVENUE.z0 - 1 && z < AVENUE.z1) continue;
-    box(root, 0.08, 1.0, 0.08, mat('#6d7277'), RIVER.x1 + 0.25, SIDEWALK_H, z);
+    if (onAvenue(z, 1)) continue;
+    box(root, 0.08, 1.0, 0.08, rail, RIVER.x1 + 0.25, SIDEWALK_H, z);
   }
-  slab(root, RIVER.x1 + 0.2, RIVER.x1 + 0.3, SIDEWALK_H + 0.95, SIDEWALK_H + 1.05, WORLD.z0, AVENUE.z0 - 0.5, mat('#6d7277'));
-  slab(root, RIVER.x1 + 0.2, RIVER.x1 + 0.3, SIDEWALK_H + 0.95, SIDEWALK_H + 1.05, AVENUE.z1 + 0.5, WORLD.z1, mat('#6d7277'));
+  const edges = [WORLD.z0, ...AVENUES.slice().sort((a, b) => a.z0 - b.z0).flatMap((a) => [a.z0 - 0.5, a.z1 + 0.5]), WORLD.z1];
+  for (let i = 0; i < edges.length; i += 2) slab(root, RIVER.x1 + 0.2, RIVER.x1 + 0.3, SIDEWALK_H + 0.95, SIDEWALK_H + 1.05, edges[i], edges[i + 1], rail);
 }
 
 /** Arched drum bridge (taiko-bashi) joining the old main street to the avenue. */

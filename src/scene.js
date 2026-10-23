@@ -46,26 +46,27 @@ export function createStage(container) {
   container.appendChild(labels.domElement);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 1, 1200);
-  camera.position.set(-150, 120, 170);
+  const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 1, 4000);
+  camera.position.set(-330, 260, 380);
 
   const controls = new OrbitControls(camera, labels.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.maxPolarAngle = 1.32;
   controls.minDistance = 4;
-  controls.maxDistance = 280;
+  controls.maxDistance = 620;
   controls.target.set(0, 0, 0);
   controls.screenSpacePanning = false;
 
   // Sky dome with a vertical gradient (the pastel backdrop of the references)
   const skyUniforms = { top: { value: DAY.skyTop.clone() }, bottom: { value: DAY.skyBottom.clone() } };
   const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(600, 32, 16),
+    new THREE.SphereGeometry(1800, 32, 16),
     new THREE.ShaderMaterial({
       uniforms: skyUniforms,
       side: THREE.BackSide,
       depthWrite: false,
+      fog: false,
       vertexShader: `varying vec3 vPos; void main(){ vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `uniform vec3 top; uniform vec3 bottom; varying vec3 vPos;
         void main(){ float h = clamp(normalize(vPos).y * 1.4 + 0.35, 0.0, 1.0); gl_FragColor = vec4(mix(bottom, top, h), 1.0); }`,
@@ -79,7 +80,7 @@ export function createStage(container) {
   for (let i = 0; i < 900; i++) {
     const v = new THREE.Vector3().randomDirection();
     v.y = Math.abs(v.y) * 0.9 + 0.1;
-    starPos.push(...v.normalize().multiplyScalar(550).toArray());
+    starPos.push(...v.normalize().multiplyScalar(1700).toArray());
   }
   starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
   const starMat = new THREE.PointsMaterial({ color: '#ffffff', size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0 });
@@ -88,19 +89,36 @@ export function createStage(container) {
   const hemi = new THREE.HemisphereLight(PASTEL ? '#f4f8ff' : '#fff4f8', PASTEL ? '#7f97c4' : '#8a6f86', DAY.hemiI);
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(DAY.sun, DAY.sunI);
-  sun.position.set(60, 90, 45);
+  // The shadow frustum follows the camera's focus and tightens as you zoom in,
+  // so close-ups stay crisp while the whole city still casts shadows from afar.
+  const SUN_DIR = new THREE.Vector3(60, 90, 45).normalize();
   sun.castShadow = true;
   sun.shadow.mapSize.set(4096, 4096);
   const sc = sun.shadow.camera;
-  sc.left = -85;
-  sc.right = 85;
-  sc.top = 70;
-  sc.bottom = -70;
   sc.near = 10;
-  sc.far = 260;
+  sc.far = 600;
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.04;
   scene.add(sun);
+  scene.add(sun.target);
+  let shadowExtent = 0;
+  const fitShadow = () => {
+    const dist = camera.position.distanceTo(controls.target);
+    const e = THREE.MathUtils.clamp(dist * 0.62, 30, 190);
+    const texel = (2 * e) / 4096;
+    const c = controls.target.clone();
+    c.x = Math.round(c.x / texel) * texel;
+    c.z = Math.round(c.z / texel) * texel;
+    sun.target.position.copy(c);
+    sun.position.copy(c).addScaledVector(SUN_DIR, 280);
+    if (Math.abs(e - shadowExtent) > shadowExtent * 0.04) {
+      shadowExtent = e;
+      sc.left = sc.bottom = -e;
+      sc.right = sc.top = e;
+      sc.updateProjectionMatrix();
+    }
+  };
+  scene.fog = new THREE.Fog(DAY.skyBottom.clone(), 600, 2200);
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
@@ -128,6 +146,7 @@ export function createStage(container) {
     bloom.strength = THREE.MathUtils.lerp(DAY.bloom, NIGHT.bloom, t);
     renderer.toneMappingExposure = THREE.MathUtils.lerp(DAY.exposure, NIGHT.exposure, t);
     starMat.opacity = Math.max(0, t * 1.2 - 0.2);
+    scene.fog.color.copy(skyUniforms.bottom.value);
     applyNight(t);
   };
   applyLighting(0);
@@ -181,6 +200,7 @@ export function createStage(container) {
     controls.target.z = THREE.MathUtils.clamp(controls.target.z, WORLD.z0, WORLD.z1);
     controls.target.y = THREE.MathUtils.clamp(controls.target.y, 0, 20);
     controls.update();
+    fitShadow();
     composer.render();
     labels.render(scene, camera);
   };
@@ -207,17 +227,35 @@ export function bakeStatic(root) {
   root.updateMatrixWorld(true);
   const buckets = new Map();
   const toRemove = [];
+  const add = (material, g) => {
+    if (!buckets.has(material.uuid)) buckets.set(material.uuid, { material, geos: [] });
+    buckets.get(material.uuid).geos.push(g);
+  };
   root.traverse((o) => {
-    if (!o.isMesh || o.isInstancedMesh || o.userData.keepSeparate || Array.isArray(o.material)) return;
+    if (!o.isMesh || o.isInstancedMesh || o.userData.keepSeparate) return;
+    const groups = o.geometry.groups.slice(); // toNonIndexed() drops groups; ranges stay valid
     let g = o.geometry.clone().applyMatrix4(o.matrixWorld);
     if (g.index) g = g.toNonIndexed();
     for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(name)) g.deleteAttribute(name);
     if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
     if (!g.attributes.normal) g.computeVertexNormals();
-    g.clearGroups();
-    const key = o.material.uuid;
-    if (!buckets.has(key)) buckets.set(key, { material: o.material, geos: [] });
-    buckets.get(key).geos.push(g);
+    if (Array.isArray(o.material)) {
+      // Multi-material mesh (facades, signs): split it into one piece per material group
+      for (const grp of groups) {
+        const material = o.material[grp.materialIndex];
+        if (!material) continue;
+        const part = new THREE.BufferGeometry();
+        for (const name of ['position', 'normal', 'uv']) {
+          const a = g.attributes[name];
+          part.setAttribute(name, new THREE.BufferAttribute(a.array.slice(grp.start * a.itemSize, (grp.start + grp.count) * a.itemSize), a.itemSize));
+        }
+        add(material, part);
+      }
+      g.dispose();
+    } else {
+      g.clearGroups();
+      add(o.material, g);
+    }
     toRemove.push(o);
   });
   for (const o of toRemove) {

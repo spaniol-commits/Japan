@@ -4,13 +4,14 @@ import { tint, tintGlow } from '../core/palette.js';
 import { box, cyl, rng, pick } from '../core/geo.js';
 import { WORLD, STREETS, POND, RAIL } from './layout.js';
 import { LOC } from '../locations.js';
+import { bakeStatic } from '../scene.js';
 
 /**
  * Things that move: cars, the commuter train, koi in the pond and drifting
  * sakura petals. Returns an update(dt, time) function for the render loop.
  */
-export function buildLife(root) {
-  const updates = [cars(root), train(root), koi(root), petals(root)];
+export function buildLife(root, view) {
+  const updates = [cars(root), train(root), koi(root), petals(root, view)];
   return (dt, t) => updates.forEach((u) => u(dt, t));
 }
 
@@ -41,6 +42,7 @@ function car(parent, color, kind) {
     box(g, 0.35, 0.18, 0.06, glowMat('#fffbe8', '#fff3c4', 2.2, 0.2), sx * 0.7, 0.55, len);
     box(g, 0.35, 0.15, 0.06, glowMat('#c0392b', '#ff2a2a', 2.0, 0.3), sx * 0.7, 0.6, -len);
   }
+  bakeStatic(g); // one draw call per material instead of one per part
   parent.add(g);
   return g;
 }
@@ -53,7 +55,7 @@ function cars(root) {
   for (const s of STREETS) {
     for (const dir of [1, -1]) {
       const x = dir > 0 ? s.x1 - 1.5 : s.x0 + 1.5;
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 4; i++) {
         const kind = rand() < 0.25 ? 'taxi' : rand() < 0.5 ? 'kei' : 'sedan';
         const g = car(root, kind === 'taxi' ? pick(rand, ['#f5c518', '#2e7d32', '#1a1a1a']) : pick(rand, colors), kind);
         g.position.set(x, 0, WORLD.z0 + rand() * span);
@@ -160,38 +162,50 @@ function koi(root) {
   };
 }
 
-/** Falling cherry blossom petals over the old town. */
-function petals(root) {
-  const N = 450;
-  const geo = new THREE.PlaneGeometry(0.22, 0.16);
-  const m = new THREE.MeshStandardMaterial({ color: tint('#f7b8d0'), emissive: tintGlow('#f39abb'), emissiveIntensity: 0.35, side: THREE.DoubleSide, roughness: 0.9 });
+/**
+ * Sakura petals riding the wind all over the city. They live in a box that
+ * follows the camera's focus (wrapping around its edges), and grow with zoom
+ * distance so they stay visible from the overview.
+ */
+function petals(root, view) {
+  const N = 1600;
+  const geo = new THREE.PlaneGeometry(0.3, 0.2);
+  const m = new THREE.MeshStandardMaterial({ color: '#f9c4d8', emissive: '#f3a6c2', emissiveIntensity: 0.35, side: THREE.DoubleSide, roughness: 0.8 });
   const mesh = new THREE.InstancedMesh(geo, m, N);
   mesh.userData.keepSeparate = true;
   mesh.userData.noShadow = true;
+  mesh.frustumCulled = false;
   root.add(mesh);
   const rand = rng(3);
   const P = [];
-  for (let i = 0; i < N; i++) {
-    P.push({
-      x: WORLD.x0 + rand() * 62,
-      y: rand() * 16,
-      z: WORLD.z0 + rand() * (WORLD.z1 - WORLD.z0),
-      s: 0.4 + rand() * 0.8,
-      ph: rand() * 10,
-    });
-  }
+  for (let i = 0; i < N; i++) P.push({ x: (rand() - 0.5) * 300, y: rand() * 60, z: (rand() - 0.5) * 200, s: 0.5 + rand(), ph: rand() * 100 });
   const o = new THREE.Object3D();
+  const centre = new THREE.Vector3();
   return (dt, t) => {
+    centre.copy(view.controls.target);
+    const dist = view.camera.position.distanceTo(centre);
+    const S = THREE.MathUtils.clamp(dist * 1.1, 50, 460);
+    const H = THREE.MathUtils.clamp(dist * 0.32, 14, 90);
+    const scale = THREE.MathUtils.clamp(dist / 70, 1, 4.5);
+    // Slowly veering breeze with occasional gusts
+    const gust = 1 + 0.8 * Math.max(0, Math.sin(t * 0.21) * Math.sin(t * 0.13));
+    const wx = Math.cos(t * 0.05) * 1.8 * gust;
+    const wz = Math.sin(t * 0.037) * 1.3 * gust;
     for (let i = 0; i < N; i++) {
       const p = P[i];
-      p.y -= p.s * dt;
-      p.x += (0.5 + Math.sin(t * 0.8 + p.ph) * 0.6) * dt;
-      if (p.y < 0.05 || p.x > 2) {
-        p.y = 10 + rand() * 6;
-        p.x = WORLD.x0 + rand() * 60;
-      }
+      p.x += (wx + Math.sin(p.z * 0.09 + t * 0.9 + p.ph) * 0.9) * dt * p.s;
+      p.z += (wz + Math.cos(p.x * 0.08 + t * 0.7 + p.ph) * 0.9) * dt * p.s;
+      p.y += (Math.sin(t * 1.3 + p.ph) * 0.5 - 0.45) * dt * p.s;
+      // wrap around the box that follows the focus
+      if (p.x - centre.x > S / 2) p.x -= S;
+      else if (centre.x - p.x > S / 2) p.x += S;
+      if (p.z - centre.z > S / 2) p.z -= S;
+      else if (centre.z - p.z > S / 2) p.z += S;
+      if (p.y < 0.3) p.y += H;
+      else if (p.y > H + 2) p.y -= H;
       o.position.set(p.x, p.y, p.z);
-      o.rotation.set(t * p.s + p.ph, t * 0.7 * p.s, p.ph);
+      o.rotation.set(t * p.s * 1.7 + p.ph, t * 0.9 * p.s, p.ph + Math.sin(t + p.ph));
+      o.scale.setScalar(scale);
       o.updateMatrix();
       mesh.setMatrixAt(i, o.matrix);
     }

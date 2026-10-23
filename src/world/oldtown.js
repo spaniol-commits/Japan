@@ -98,7 +98,7 @@ export function buildOldTown(root) {
 }
 
 /** Two-storey wooden townhouse (machiya) with lattice front, noren and kanban. */
-function machiya(parent, x, z, ry, { w = 7, d = 6, floors = 2, wall = C.woodLight, roofColor = C.roofTeal, sign: kanban, noren, stall = false } = {}) {
+export function machiya(parent, x, z, ry, { w = 7, d = 6, floors = 2, wall = C.woodLight, roofColor = C.roofTeal, sign: kanban, noren, stall = false } = {}) {
   const g = group(parent, x, 0, z, ry);
   const wood = mat(wall);
   const dark = mat(C.woodDark);

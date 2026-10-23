@@ -1,7 +1,7 @@
 # Machi de Nihongo · 街で日本語
 
 Learn Japanese for real-life situations by exploring a 3D diorama of a Japanese town.
-It's part Edo-period old town and part modern Tokyo, split by a turquoise river.
+It's part Edo-period old town and part modern Tokyo, split by a river, on a 270 × 190 m diorama with Mount Fuji rising in the north-west.
 
 ## Run it
 
@@ -32,8 +32,10 @@ The API, used by `main.js`, is `play(name)`, `walkTo(points)`, `face(target)`, `
 
 | District | Places (lesson spots) | Scenery |
 | --- | --- | --- |
-| 昔の町 Old town (west) | 寿司屋 sushi restaurant, ラーメン屋 ramen shop, 茶屋 tea house, 神社 shrine, 五重塔 pagoda, 旅館 ryokan | torii tunnel, pond with a floating torii and koi, fire-watch tower, town gate, pavilion, bamboo, sakura with falling petals |
-| 今の町 Modern city (east) | コンビニ konbini, 交番 police box (asking directions), 駅 station, ホテル hotel | office blocks with rooftop clutter and billboards, neon blade signs, traffic, an elevated railway with a train that stops at the station |
+| 昔の町 Old town (west) | 寿司屋 sushi restaurant, ラーメン屋 ramen shop, 茶屋 tea house, 神社 shrine, 五重塔 pagoda, 旅館 ryokan, 城 castle, 富士山 Mount Fuji | 富士山 with a snowcap and cedar forests, a lake with a torii, a village along the main street, rice paddies with thatched farmhouses, a castle with ramparts, turrets and a moat, a torii tunnel, a koi pond, a fire-watch tower and a town gate |
+| 今の町 Modern city (east) | コンビニ konbini, 交番 police box (asking directions), 駅 station, ホテル hotel | a grid of 3 avenues and 6 streets rising to a skyscraper core, a Skytree-style tower, parks with sakura, an elevated railway with a train that stops at the station, and traffic |
+
+Three bridges cross the river. Sakura petals ride a shifting breeze around wherever the camera is looking.
 
 All place data (position, entrance direction, situation, phrases) lives in
 [`src/locations.js`](src/locations.js). Each building is placed from those coordinates.
@@ -57,14 +59,15 @@ src/
   world/
     layout.js        city plan (river, streets, blocks, railway)
     terrain.js       diorama base, river, streets, bridge, pond
-    oldtown.js       Edo-style buildings
+    oldtown.js       Edo-style core: shops, shrine, pagoda, ryokan
+    outskirts.js     Mount Fuji, forest, lake, village, rice paddies, castle, bridges
     modern.js        modern blocks and landmarks
     props.js         trees, lanterns, torii, poles, vending machines…
     life.js          cars, train, koi, petals
 ```
 
 Everything is built from Three.js primitives in code, so there are no model files to download.
-Static meshes that share a material are merged at startup, which brings about 2,600 meshes down to roughly 170 draw calls.
+Static meshes that share a material are merged at startup, and multi-material meshes are split by material first, which turns about 10,000 meshes into roughly 400 draw calls. Building facades share one material per wall colour, with the window grid scaled through UVs. The sun's shadow frustum follows the camera focus and tightens as you zoom in.
 
 ## Roadmap
 

@@ -6,6 +6,7 @@ export const FONT_SANS = '"Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-ser
 export const FONT_SERIF = '"Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", serif';
 
 const texCache = new Map();
+const matCache = new Map();
 
 /**
  * Canvas texture with Japanese text. `vertical` stacks characters top-to-bottom
@@ -71,25 +72,31 @@ export function textTexture(text, { bg = '#ffffff', fg = '#000000', font = FONT_
 export function sign(parent, text, w, h, opts = {}, x = 0, y = 0, z = 0, ry = 0) {
   const vertical = opts.vertical ?? h > w * 1.4;
   const tex = textTexture(text, { ...opts, vertical, aspect: vertical ? h / w : w / h });
-  const face = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 });
-  if (opts.lit) {
-    face.emissive = new THREE.Color('#ffffff');
-    face.emissiveMap = tex;
-    glow(face, opts.lit === true ? 1.3 : opts.lit, opts.litDay ?? 0.12);
+  const faceKey = tex.uuid + '|' + (opts.lit ?? '') + '|' + (opts.litDay ?? '');
+  let face = matCache.get(faceKey);
+  if (!face) {
+    face = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 });
+    if (opts.lit) {
+      face.emissive = new THREE.Color('#ffffff');
+      face.emissiveMap = tex;
+      glow(face, opts.lit === true ? 1.3 : opts.lit, opts.litDay ?? 0.12);
+    }
+    matCache.set(faceKey, face);
   }
-  const edge = new THREE.MeshStandardMaterial({ color: tint(opts.frame ?? opts.bg ?? '#333'), roughness: 0.8 });
+  const edgeColor = tint(opts.frame ?? opts.bg ?? '#333');
+  let edge = matCache.get(edgeColor);
+  if (!edge) matCache.set(edgeColor, (edge = new THREE.MeshStandardMaterial({ color: edgeColor, roughness: 0.8 })));
   const depth = opts.depth ?? 0.12;
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, depth), [edge, edge, edge, edge, face, opts.backFace ? face : edge]);
   m.position.set(x, y + h / 2, z);
   m.rotation.y = ry;
-  m.userData.keepSeparate = true;
   parent.add(m);
   return m;
 }
 
 /** Every string drawn on a sign, so fonts can be preloaded before textures are painted. */
 export const SIGN_TEXT =
-  '楽寿司すしラーメン一番屋駅交番KOBANコンビニ24HホテルHOTEL茶屋お茶甘味処神社五重塔旅館居酒屋カラオケカフェ薬ドラッグ本屋銀行ATM歯科不動産ラーメンうどん酒焼鳥中央口STATIONCONVENIENCE営業中ゲームセンターパチンコ東京寿亭花月堂0123456789まつりようこそWELCOMEJAPAN日本';
+  '楽寿司すしラーメン一番屋駅交番KOBANコンビニ24HホテルHOTEL茶屋お茶甘味処神社五重塔旅館居酒屋カラオケカフェ薬ドラッグ本屋銀行ATM歯科不動産ラーメンうどん酒焼鳥中央口STATIONCONVENIENCE営業中ゲームセンターパチンコ東京寿亭花月堂0123456789まつりようこそWELCOMEJAPAN日本そば米魚八百屋豆腐団子城天守閣富士山スカイツリー公園BIM';
 
 export async function loadFonts() {
   if (!document.fonts) return;
