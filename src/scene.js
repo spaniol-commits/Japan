@@ -51,7 +51,7 @@ export function createStage(container) {
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.maxPolarAngle = 1.32;
-  controls.minDistance = 14;
+  controls.minDistance = 4;
   controls.maxDistance = 280;
   controls.target.set(0, 0, 0);
   controls.screenSpacePanning = false;
@@ -132,12 +132,14 @@ export function createStage(container) {
 
   // Smooth camera flights between places
   let flight = null;
-  const flyTo = (target, distance = 34, duration = 1.4, facing = null) => {
+  let follow = null;
+  const flyTo = (target, distance = 34, duration = 1.4, facing = null, pitch = 0.85, side = 0.55) => {
+    follow = null;
     let dir;
     if (facing) {
       // three-quarter view of the entrance: facing direction, nudged sideways, from above
-      dir = new THREE.Vector3(facing[0] + facing[1] * 0.55, 0, facing[1] - facing[0] * 0.55).normalize();
-      dir.y = 0.85;
+      dir = new THREE.Vector3(facing[0] + facing[1] * side, 0, facing[1] - facing[0] * side).normalize();
+      dir.y = pitch;
     } else {
       dir = camera.position.clone().sub(controls.target).normalize();
       dir.y = THREE.MathUtils.clamp(dir.y, 0.45, 0.75); // keep a pleasant oblique angle
@@ -165,6 +167,12 @@ export function createStage(container) {
       camera.position.lerpVectors(flight.fromPos, flight.toPos, k);
       controls.target.lerpVectors(flight.fromTarget, flight.toTarget, k);
       if (flight.t >= 1) flight = null;
+    } else if (follow) {
+      // Keep a moving object (Bim) centred, preserving the user's orbit angle
+      const desired = follow.obj.getWorldPosition(new THREE.Vector3()).add(follow.offset);
+      const delta = desired.sub(controls.target).multiplyScalar(1 - Math.exp(-4 * dt));
+      controls.target.add(delta);
+      camera.position.add(delta);
     }
     // keep the orbit centre on the diorama
     controls.target.x = THREE.MathUtils.clamp(controls.target.x, WORLD.x0, WORLD.x1);
@@ -175,7 +183,18 @@ export function createStage(container) {
     labels.render(scene, camera);
   };
 
-  return { renderer, scene, camera, controls, update, setNight, isNight: () => nightTarget === 1, flyTo, cancelFlight: () => (flight = null) };
+  return {
+    renderer,
+    scene,
+    camera,
+    controls,
+    update,
+    setNight,
+    isNight: () => nightTarget === 1,
+    flyTo,
+    cancelFlight: () => (flight = null),
+    follow: (obj, offset = new THREE.Vector3(0, 1.1, 0)) => (follow = obj ? { obj, offset } : null),
+  };
 }
 
 /**

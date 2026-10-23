@@ -138,3 +138,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .list-open #place-list { display: block; }
   #place-card { left: 16px; right: 16px; width: auto; top: auto; bottom: 64px; max-height: 58vh; transform: translateY(calc(100% + 80px)); }
 }
+
+/* Bim, the trainer */
+.place-label.trainer { border-bottom-color: #ff7a1a; background: linear-gradient(#fffaf3, #ffeede); }
+.place-label.trainer::after { border-top-color: #ff7a1a; }
+.place.trainer b { min-width: 64px; }
+.card-head.trainer { border-color: #ff7a1a; }
+.card-head.trainer .kanji { font-size: 34px; }
+.moves { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.moves button {
+  border: 1px solid #f0e4d8; background: #fff; border-radius: 10px; padding: 8px 4px; display: grid; gap: 2px;
+  transition: transform 0.12s;
+}
+.moves button:hover { transform: translateY(-2px); border-color: #ff7a1a; }
+.moves b { font-family: 'Noto Sans JP', sans-serif; font-size: 14px; }
+.moves span { font-size: 11.5px; color: var(--muted); }
+.night .moves button { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.1); }
+.night .place-label.trainer { background: var(--paper); }

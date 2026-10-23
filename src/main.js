@@ -7,7 +7,9 @@ import { buildOldTown } from './world/oldtown.js';
 import { buildModern } from './world/modern.js';
 import { buildLife } from './world/life.js';
 import { LOCATIONS } from './locations.js';
-import { createUI } from './ui.js';
+import { createUI, speak } from './ui.js';
+import { createBim } from './trainer/bim.js';
+import { TRAINER } from './trainer/profile.js';
 import './style.css';
 
 async function main() {
@@ -25,10 +27,70 @@ async function main() {
     if (o.isInstancedMesh) o.frustumCulled = false;
   });
 
+  // Bim, the trainer, waits at the old-town end of the bridge
+  const bim = createBim();
+  const home = TRAINER.home;
+  bim.root.position.set(home.x, 0.1, home.z);
+  bim.root.rotation.y = home.yaw;
+  bim.root.scale.setScalar(0.85);
+  stage.scene.add(bim.root);
+  const bimFacing = () => [Math.sin(bim.root.rotation.y), Math.cos(bim.root.rotation.y)];
+  const talk = (extra = {}) => ({
+    pitch: 1.45,
+    rate: 0.9,
+    ...extra,
+    onStart: () => bim.setTalking(true),
+    onEnd: () => {
+      bim.setTalking(false);
+      extra.onEnd?.();
+    },
+  });
+  const say = (text) => new Promise((resolve) => speak(text, talk({ onEnd: resolve })));
+
+  let meeting = 0;
+  const meetBim = async () => {
+    const id = ++meeting;
+    stage.follow(null);
+    bim.face(home.yaw);
+    const pos = bim.root.position;
+    const yaw = home.yaw;
+    stage.flyTo(new THREE.Vector3(pos.x, 1.1, pos.z), 5.4, 1.6, [Math.sin(yaw), Math.cos(yaw)], 0.24, 0.2);
+    await new Promise((r) => setTimeout(r, 1500));
+    if (id !== meeting) return;
+    bim.play('bow');
+    await say(TRAINER.phrases[0].jp);
+    if (id !== meeting) return;
+    bim.play('wave');
+    await say(TRAINER.phrases[1].jp);
+  };
+
+  const trainerAction = async (name, phrase) => {
+    if (name === 'say') {
+      bim.play('nod');
+      return say(phrase.jp);
+    }
+    if (name === 'walk') {
+      if (bim.busy) return;
+      stage.follow(bim.root);
+      await bim.walkTo(TRAINER.stroll);
+      bim.face(home.yaw);
+      bim.play('bow');
+      return;
+    }
+    bim.play(name);
+    if (name === 'bow') say('よろしくお願いします。');
+    if (name === 'cheer') say('がんばって！');
+    if (name === 'wave') say('やあ！');
+  };
+
   const ui = createUI({
     locations: LOCATIONS,
-    onSelect: (loc) => stage.flyTo(new THREE.Vector3(loc.pos[0], loc.labelY * 0.35, loc.pos[1]), 28 + loc.labelY * 1.4, 1.4, loc.facing),
-    onOverview: () => stage.flyTo(new THREE.Vector3(0, 0, 0), 205, 1.6),
+    trainer: TRAINER,
+    onMeetTrainer: meetBim,
+    onTrainerAction: trainerAction,
+    onSpeak: () => talk({ pitch: 1 }),
+    onSelect: (loc) => (meeting++, stage.flyTo(new THREE.Vector3(loc.pos[0], loc.labelY * 0.35, loc.pos[1]), 28 + loc.labelY * 1.4, 1.4, loc.facing)),
+    onOverview: () => (meeting++, stage.flyTo(new THREE.Vector3(0, 0, 0), 205, 1.6)),
     onNight: (on) => stage.setNight(on),
   });
 
@@ -44,6 +106,16 @@ async function main() {
     stage.scene.add(label);
   }
 
+  // Bim's own label rides along with him
+  const bimLabel = document.createElement('button');
+  bimLabel.className = 'place-label trainer';
+  bimLabel.innerHTML = `<span class="jp">ビム先生</span><span class="ro">Bim · your trainer</span>`;
+  bimLabel.addEventListener('pointerdown', (e) => e.stopPropagation());
+  bimLabel.addEventListener('click', () => ui.select('trainer'));
+  const bimTag = new CSS2DObject(bimLabel);
+  bimTag.position.set(0, 3.2, 0);
+  bim.root.add(bimTag);
+
   stage.controls.addEventListener('start', () => stage.cancelFlight());
 
   const timer = new THREE.Timer();
@@ -51,6 +123,7 @@ async function main() {
     timer.update(now);
     const dt = Math.min(timer.getDelta(), 0.05);
     updateLife(dt, timer.getElapsed());
+    bim.update(dt, timer.getElapsed(), stage.camera);
     stage.update(dt);
   });
 
@@ -58,7 +131,7 @@ async function main() {
   stage.flyTo(new THREE.Vector3(-2, 0, 0), 170, 2.6);
   ui.ready();
   console.info(`[machi] baked ${stats.merged} meshes into ${stats.drawCalls} draw calls`);
-  window.__machi = { stage, stats };
+  window.__machi = { stage, stats, bim };
 }
 
 main();
