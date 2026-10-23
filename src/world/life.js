@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mat, glowMat } from '../core/materials.js';
+import { tint, tintGlow } from '../core/palette.js';
 import { box, cyl, rng, pick } from '../core/geo.js';
 import { WORLD, STREETS, POND, RAIL } from './layout.js';
 import { LOC } from '../locations.js';
@@ -163,7 +164,7 @@ function koi(root) {
 function petals(root) {
   const N = 450;
   const geo = new THREE.PlaneGeometry(0.22, 0.16);
-  const m = new THREE.MeshStandardMaterial({ color: '#f7b8d0', emissive: '#f39abb', emissiveIntensity: 0.35, side: THREE.DoubleSide, roughness: 0.9 });
+  const m = new THREE.MeshStandardMaterial({ color: tint('#f7b8d0'), emissive: tintGlow('#f39abb'), emissiveIntensity: 0.35, side: THREE.DoubleSide, roughness: 0.9 });
   const mesh = new THREE.InstancedMesh(geo, m, N);
   mesh.userData.keepSeparate = true;
   mesh.userData.noShadow = true;

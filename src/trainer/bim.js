@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { mat, glowMat } from '../core/materials.js';
+import { mat, matExact, glowMat, glow } from '../core/materials.js';
 import { sign } from '../core/signs.js';
+import { THEME, tint, tintGlow } from '../core/palette.js';
 
 /**
  * Bim (ビム), the trainer: a small companion robot in the spirit of Robohon,
@@ -13,18 +14,27 @@ import { sign } from '../core/signs.js';
  */
 
 const smooth = { flatShading: false };
+// Bim has his own hand-picked colours per theme: in pastel blue the armour is
+// near-white porcelain and the robot body periwinkle, like the reference figure.
+const PASTEL = THEME !== 'classic';
+const bm = (classic, pastel, opts) => (PASTEL ? matExact(pastel, opts) : mat(classic, opts));
 const M = {
-  black: mat('#1b1c1f', { ...smooth, roughness: 0.28 }),
-  white: mat('#f5f4f0', { ...smooth, roughness: 0.3, emissive: '#ffffff', emissiveIntensity: 0.06 }),
-  gray: mat('#4a4d52', { ...smooth, roughness: 0.4 }),
-  lacquer: mat('#b3202b', { ...smooth, roughness: 0.32 }),
-  darkLacquer: mat('#2a1d1c', { ...smooth, roughness: 0.3 }),
-  gold: mat('#d6a93c', { ...smooth, roughness: 0.28, metalness: 0.75 }),
-  orange: mat('#ff7a1a', { ...smooth, roughness: 0.4 }),
-  obi: mat('#4b2a6b', { ...smooth, roughness: 0.6 }),
-  hilt: mat('#ece5d3', { ...smooth, roughness: 0.7 }),
-  eyeRing: glowMat('#ffb347', '#ff8a1f', 2.4, 1.1, smooth),
-  eyeBlack: mat('#0d0d10', { ...smooth, roughness: 0.15 }),
+  black: bm('#1b1c1f', '#8ea6e4', { ...smooth, roughness: 0.32 }),
+  white: bm('#f5f4f0', '#f4f7ff', { ...smooth, roughness: 0.3, emissive: '#ffffff', emissiveIntensity: 0.06 }),
+  gray: bm('#4a4d52', '#7891d6', { ...smooth, roughness: 0.4 }),
+  lacquer: bm('#b3202b', '#e3ebfc', { ...smooth, roughness: 0.32 }),
+  lacquer2: bm('#9e1c26', '#d3dff8', { ...smooth, roughness: 0.32, side: THREE.DoubleSide }),
+  lacquer3: bm('#b3202b', '#e3ebfc', { ...smooth, roughness: 0.32, side: THREE.DoubleSide }),
+  darkLacquer: bm('#2a1d1c', '#e9effd', { ...smooth, roughness: 0.3 }),
+  gold: bm('#d6a93c', '#b4c6f2', { ...smooth, roughness: 0.3, metalness: PASTEL ? 0.2 : 0.75 }),
+  orange: bm('#ff7a1a', '#a3b8f0', { ...smooth, roughness: 0.4 }),
+  obi: bm('#4b2a6b', '#c8d6f6', { ...smooth, roughness: 0.6 }),
+  hilt: bm('#ece5d3', '#eef3ff', { ...smooth, roughness: 0.7 }),
+  scabbard: bm('#2a1d1c', '#9db3ec', { ...smooth, roughness: 0.3 }),
+  eyeBlack: bm('#0d0d10', '#6d8fdc', { ...smooth, roughness: 0.15 }),
+  eyeRing: PASTEL
+    ? glow(new THREE.MeshStandardMaterial({ color: '#dfe9ff', emissive: '#a9c6ff', roughness: 0.4 }), 2.0, 0.35)
+    : glowMat('#ffb347', '#ff8a1f', 2.4, 1.1, smooth),
 };
 
 function rbox(parent, w, h, d, material, x = 0, y = 0, z = 0, r = 0.04) {
@@ -68,7 +78,7 @@ function buildHead(head, J) {
     J.eyes.push(eye);
   }
   // Little mouth that lights up when Bim speaks
-  J.mouthMat = new THREE.MeshStandardMaterial({ color: '#3a3a40', emissive: '#ff8a1f', emissiveIntensity: 0, roughness: 0.3 });
+  J.mouthMat = new THREE.MeshStandardMaterial({ color: tint('#3a3a40'), emissive: tintGlow('#ff8a1f'), emissiveIntensity: 0, roughness: 0.3 });
   const mouth = mesh(head, new THREE.CapsuleGeometry(0.028, 0.05, 4, 12), J.mouthMat, 0, 0.13, 0.355);
   mouth.rotation.z = Math.PI / 2;
   mouth.scale.z = 0.5;
@@ -110,7 +120,7 @@ function buildHead(head, J) {
     const tier = mesh(
       helm,
       new THREE.CylinderGeometry(r0, r0 + 0.035, 0.09, 32, 1, true, Math.PI * 0.3, Math.PI * 1.4),
-      mat(k % 2 ? '#9e1c26' : '#b3202b', { ...smooth, roughness: 0.32, side: THREE.DoubleSide }),
+      k % 2 ? M.lacquer2 : M.lacquer3,
       0,
       rimY - 0.06 - k * 0.075,
       -0.01,
@@ -158,7 +168,7 @@ function buildSode(parent, s) {
   const g = pivot(parent, s * 0.42, 0.7, 0);
   g.rotation.z = -s * 0.45;
   for (let k = 0; k < 3; k++) {
-    rbox(g, 0.24, 0.075, 0.3, k === 0 ? M.lacquer : mat(k === 1 ? '#a51d28' : '#b3202b', { ...smooth, roughness: 0.32 }), s * k * 0.012, -k * 0.072, 0, 0.025);
+    rbox(g, 0.24, 0.075, 0.3, k === 1 ? M.lacquer2 : M.lacquer, s * k * 0.012, -k * 0.072, 0, 0.025);
     rbox(g, 0.245, 0.012, 0.305, M.gold, s * k * 0.012, -k * 0.072 - 0.035, 0, 0.004);
   }
   return g;
@@ -211,7 +221,7 @@ function buildTorso(hips, J) {
   // Katana tucked into the obi on the left hip, handle forward
   const katana = pivot(hips, 0.31, 0.16, 0.04);
   katana.rotation.set(-0.38, 0.12, 0);
-  rbox(katana, 0.045, 0.055, 0.9, M.darkLacquer, 0, 0, -0.28, 0.02);
+  rbox(katana, 0.045, 0.055, 0.9, M.scabbard, 0, 0, -0.28, 0.02);
   rbox(katana, 0.05, 0.06, 0.04, M.gold, 0, 0, -0.73, 0.01); // kojiri
   const tsuba = mesh(katana, new THREE.CylinderGeometry(0.065, 0.065, 0.02, 20), M.gold, 0, 0, 0.18);
   tsuba.rotation.x = Math.PI / 2;

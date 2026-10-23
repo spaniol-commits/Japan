@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { C, mat } from '../core/materials.js';
+import { THEME } from '../core/palette.js';
 import { box, cyl, group, beam, rng } from '../core/geo.js';
 import { WORLD, RIVER, MAIN_STREET, POND, AVENUE, STREETS, BLOCK_X, BLOCK_Z, SIDEWALK_H } from './layout.js';
 import { rock } from './props.js';
@@ -15,8 +16,8 @@ function slab(parent, x0, x1, y0, y1, z0, z1, material) {
 }
 
 export const waterMaterial = new THREE.MeshStandardMaterial({
-  color: C.water,
-  emissive: '#1aa6a6',
+  color: THEME === 'classic' ? C.water : '#8fd0f2',
+  emissive: THEME === 'classic' ? '#1aa6a6' : '#5aa8e0',
   emissiveIntensity: 0.35,
   roughness: 0.08,
   metalness: 0.1,

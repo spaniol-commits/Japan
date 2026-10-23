@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { tint, tintGlow } from './palette.js';
 
 // Shared palette, loosely sampled from the reference dioramas:
 // warm timber, cream plaster, slate roof tiles, vermilion shrine red,
@@ -41,6 +42,19 @@ export function mat(color, opts = {}) {
   const key = color + JSON.stringify(opts);
   let m = cache.get(key);
   if (!m) {
+    const o = { ...opts };
+    if (o.emissive) o.emissive = tintGlow(o.emissive);
+    m = new THREE.MeshStandardMaterial({ color: tint(color), roughness: 0.85, metalness: 0, flatShading: true, ...o });
+    cache.set(key, m);
+  }
+  return m;
+}
+
+/** Like `mat`, but the colour is used exactly as given (no theme tint). */
+export function matExact(color, opts = {}) {
+  const key = 'exact' + color + JSON.stringify(opts);
+  let m = cache.get(key);
+  if (!m) {
     m = new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0, flatShading: true, ...opts });
     cache.set(key, m);
   }
@@ -62,7 +76,7 @@ export function glowMat(color, emissive = color, night = 1.6, day = 0.15, opts =
   const key = 'glow' + color + emissive + night + day + JSON.stringify(opts);
   let m = cache.get(key);
   if (!m) {
-    m = new THREE.MeshStandardMaterial({ color, emissive, roughness: 0.6, flatShading: true, ...opts });
+    m = new THREE.MeshStandardMaterial({ color: tint(color), emissive: tintGlow(emissive), roughness: 0.6, flatShading: true, ...opts });
     glow(m, night, day);
     cache.set(key, m);
   }

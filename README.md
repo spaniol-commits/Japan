@@ -37,6 +37,12 @@ The API, used by `main.js`, is `play(name)`, `walkTo(points)`, `face(target)`, `
 All place data (position, entrance direction, situation, phrases) lives in
 [`src/locations.js`](src/locations.js). Each building is placed from those coordinates.
 
+## Colourway
+
+The default look is **pastel blue**, like porcelain clay models. Every colour passes through `tint()` / `tintGlow()` in
+[`src/core/palette.js`](src/core/palette.js), which maps it onto a soft blue ramp by brightness. Bim uses his own hand-picked pastel set: porcelain armour and a periwinkle body.
+To get the original warm palette back, set `THEME = 'classic'` in that file.
+
 ## Code map
 
 ```
@@ -46,7 +52,7 @@ src/
   ui.js              place list, location card, speech synthesis
   locations.js       lesson spots + phrases
   trainer/           Bim: model + animation (bim.js), profile and lines (profile.js)
-  core/              materials palette, geometry helpers, Japanese roof generator, canvas text signs
+  core/              colour theme (palette.js), materials, geometry helpers, Japanese roof generator, canvas text signs
   world/
     layout.js        city plan (river, streets, blocks, railway)
     terrain.js       diorama base, river, streets, bridge, pond

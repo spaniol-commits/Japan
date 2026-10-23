@@ -7,20 +7,22 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { applyNight } from './core/materials.js';
+import { THEME } from './core/palette.js';
 import { WORLD } from './world/layout.js';
 
+const PASTEL = THEME !== 'classic';
 const DAY = {
-  skyTop: new THREE.Color('#9d84e3'),
-  skyBottom: new THREE.Color('#ffc4d6'),
-  sun: new THREE.Color('#fff1dc'),
-  sunI: 2.6,
-  hemiI: 1.25,
-  bloom: 0.12,
-  exposure: 1.0,
+  skyTop: new THREE.Color(PASTEL ? '#3f86f7' : '#9d84e3'),
+  skyBottom: new THREE.Color(PASTEL ? '#acd0ff' : '#ffc4d6'),
+  sun: new THREE.Color(PASTEL ? '#ffffff' : '#fff1dc'),
+  sunI: PASTEL ? 2.2 : 2.6,
+  hemiI: PASTEL ? 1.35 : 1.25,
+  bloom: PASTEL ? 0.05 : 0.12,
+  exposure: PASTEL ? 0.95 : 1.0,
 };
 const NIGHT = {
   skyTop: new THREE.Color('#0a0f2e'),
-  skyBottom: new THREE.Color('#40285e'),
+  skyBottom: new THREE.Color(PASTEL ? '#23406e' : '#40285e'),
   sun: new THREE.Color('#8fa8ff'),
   sunI: 0.45,
   hemiI: 0.6,
@@ -83,7 +85,7 @@ export function createStage(container) {
   const starMat = new THREE.PointsMaterial({ color: '#ffffff', size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0 });
   scene.add(new THREE.Points(starGeo, starMat));
 
-  const hemi = new THREE.HemisphereLight('#fff4f8', '#8a6f86', DAY.hemiI);
+  const hemi = new THREE.HemisphereLight(PASTEL ? '#f4f8ff' : '#fff4f8', PASTEL ? '#7f97c4' : '#8a6f86', DAY.hemiI);
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(DAY.sun, DAY.sunI);
   sun.position.set(60, 90, 45);

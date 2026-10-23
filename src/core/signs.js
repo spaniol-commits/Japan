@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { glow } from './materials.js';
+import { tint } from './palette.js';
 
 export const FONT_SANS = '"Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif';
 export const FONT_SERIF = '"Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", serif';
@@ -11,6 +12,9 @@ const texCache = new Map();
  * like the hanging signs in Japanese streets. Lines are separated with "\n".
  */
 export function textTexture(text, { bg = '#ffffff', fg = '#000000', font = FONT_SANS, weight = 700, vertical = false, aspect = 3, border = null } = {}) {
+  bg = tint(bg);
+  fg = tint(fg);
+  if (border) border = tint(border);
   const key = [text, bg, fg, font, weight, vertical, aspect, border].join('|');
   if (texCache.has(key)) return texCache.get(key);
 
@@ -73,7 +77,7 @@ export function sign(parent, text, w, h, opts = {}, x = 0, y = 0, z = 0, ry = 0)
     face.emissiveMap = tex;
     glow(face, opts.lit === true ? 1.3 : opts.lit, opts.litDay ?? 0.12);
   }
-  const edge = new THREE.MeshStandardMaterial({ color: opts.frame ?? opts.bg ?? '#333', roughness: 0.8 });
+  const edge = new THREE.MeshStandardMaterial({ color: tint(opts.frame ?? opts.bg ?? '#333'), roughness: 0.8 });
   const depth = opts.depth ?? 0.12;
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, depth), [edge, edge, edge, edge, face, opts.backFace ? face : edge]);
   m.position.set(x, y + h / 2, z);

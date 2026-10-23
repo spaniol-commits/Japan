@@ -3,6 +3,7 @@ import { mat, glowMat, glow } from '../core/materials.js';
 import { box, cyl, group, beam, rng, pick } from '../core/geo.js';
 import { roof } from '../core/roof.js';
 import { sign } from '../core/signs.js';
+import { tint, tintGlow } from '../core/palette.js';
 import { LOC } from '../locations.js';
 import { WORLD, RIVER, AVENUE, STREETS, BLOCK_X, BLOCK_Z, SIDEWALK_H, RAIL } from './layout.js';
 import * as P from './props.js';
@@ -102,15 +103,15 @@ function facadeTextures(wall) {
   };
   const rand = rng(wall.length * 977 + wall.charCodeAt(1));
   const map = make((ctx) => {
-    ctx.fillStyle = wall;
+    ctx.fillStyle = tint(wall);
     ctx.fillRect(0, 0, N * S, N * S);
     for (let i = 0; i < N; i++)
       for (let j = 0; j < N; j++) {
         const x = i * S,
           y = j * S;
         const g = ctx.createLinearGradient(x, y, x + S, y + S);
-        g.addColorStop(0, '#5d7387');
-        g.addColorStop(1, '#2b3846');
+        g.addColorStop(0, tint('#5d7387'));
+        g.addColorStop(1, tint('#2b3846'));
         ctx.fillStyle = g;
         ctx.fillRect(x + 10, y + 12, S - 20, S - 24);
         ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -125,7 +126,7 @@ function facadeTextures(wall) {
     for (let i = 0; i < N; i++)
       for (let j = 0; j < N; j++) {
         if (rand() > 0.5) continue;
-        ctx.fillStyle = rand() > 0.3 ? '#ffd79a' : '#d6ecff';
+        ctx.fillStyle = tintGlow(rand() > 0.3 ? '#ffd79a' : '#d6ecff');
         ctx.fillRect(i * S + 10, j * S + 12, S - 20, S - 24);
       }
   });

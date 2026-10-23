@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { C, mat, glowMat } from '../core/materials.js';
+import { tint } from '../core/palette.js';
 import { box, cyl, ball, group, beam, pick } from '../core/geo.js';
 import { roof } from '../core/roof.js';
 import { sign } from '../core/signs.js';
@@ -182,7 +183,7 @@ export function utilityPole(parent, x, z, h = 7) {
 }
 
 export function wires(parent, points) {
-  const material = new THREE.LineBasicMaterial({ color: '#2d2a28' });
+  const material = new THREE.LineBasicMaterial({ color: tint('#2d2a28') });
   for (let i = 0; i < points.length - 1; i++) {
     for (const off of [-0.65, 0.65]) {
       const a = points[i].clone().add(V(off, 0, 0));
