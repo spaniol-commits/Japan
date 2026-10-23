@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Machi de Nihongo · 街で日本語</title>
+    <meta name="description" content="Learn Japanese for real-life situations by exploring a 3D Japanese city." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Noto+Serif+JP:wght@700;900&family=Zen+Maru+Gothic:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <header class="brand">
+      <div class="hanko">街</div>
+      <div>
+        <h1>Machi de Nihongo <span lang="ja">街で日本語</span></h1>
+        <p>Learn Japanese by living it — explore the town and visit a place.</p>
+      </div>
+    </header>
+
+    <nav class="toolbar">
+      <button id="btn-list" class="only-mobile">📍 Places</button>
+      <button id="btn-overview">🗾 Overview</button>
+      <button id="btn-labels">🏷️ Hide labels</button>
+      <button id="btn-night">🌙 Night</button>
+    </nav>
+
+    <aside id="place-list" aria-label="Places to visit"></aside>
+    <article id="place-card" aria-live="polite"></article>
+
+    <footer class="hint">Drag to rotate · Right-drag to pan · Scroll to zoom · Click a place to visit</footer>
+
+    <div id="loader">
+      <div class="torii-spin">⛩️</div>
+      <p>Building the town… <span lang="ja">町を作っています</span></p>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
