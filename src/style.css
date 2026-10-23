@@ -155,3 +155,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .moves span { font-size: 11.5px; color: var(--muted); }
 .night .moves button { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.1); }
 .night .place-label.trainer { background: var(--paper); }
+
+/* Travel and leisure districts */
+:root { --travel: #6f7fd8; --leisure: #5fa8b8; }
+.place-label.travel { border-bottom-color: var(--travel); }
+.place-label.travel::after { border-top-color: var(--travel); }
+.place-label.leisure { border-bottom-color: var(--leisure); }
+.place-label.leisure::after { border-top-color: var(--leisure); }
+.card-head.travel { border-color: var(--travel); }
+.card-head.leisure { border-color: var(--leisure); }

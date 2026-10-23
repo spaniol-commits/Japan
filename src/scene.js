@@ -46,22 +46,22 @@ export function createStage(container) {
   container.appendChild(labels.domElement);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 1, 4000);
-  camera.position.set(-330, 260, 380);
+  const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 1, 9000);
+  camera.position.set(-700, 560, 820);
 
   const controls = new OrbitControls(camera, labels.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.maxPolarAngle = 1.32;
   controls.minDistance = 4;
-  controls.maxDistance = 620;
+  controls.maxDistance = 1400;
   controls.target.set(0, 0, 0);
   controls.screenSpacePanning = false;
 
   // Sky dome with a vertical gradient (the pastel backdrop of the references)
   const skyUniforms = { top: { value: DAY.skyTop.clone() }, bottom: { value: DAY.skyBottom.clone() } };
   const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(1800, 32, 16),
+    new THREE.SphereGeometry(4200, 32, 16),
     new THREE.ShaderMaterial({
       uniforms: skyUniforms,
       side: THREE.BackSide,
@@ -80,7 +80,7 @@ export function createStage(container) {
   for (let i = 0; i < 900; i++) {
     const v = new THREE.Vector3().randomDirection();
     v.y = Math.abs(v.y) * 0.9 + 0.1;
-    starPos.push(...v.normalize().multiplyScalar(1700).toArray());
+    starPos.push(...v.normalize().multiplyScalar(4000).toArray());
   }
   starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
   const starMat = new THREE.PointsMaterial({ color: '#ffffff', size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0 });
@@ -96,7 +96,7 @@ export function createStage(container) {
   sun.shadow.mapSize.set(4096, 4096);
   const sc = sun.shadow.camera;
   sc.near = 10;
-  sc.far = 600;
+  sc.far = 1200;
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.04;
   scene.add(sun);
@@ -104,13 +104,13 @@ export function createStage(container) {
   let shadowExtent = 0;
   const fitShadow = () => {
     const dist = camera.position.distanceTo(controls.target);
-    const e = THREE.MathUtils.clamp(dist * 0.62, 30, 190);
+    const e = THREE.MathUtils.clamp(dist * 0.62, 30, 360);
     const texel = (2 * e) / 4096;
     const c = controls.target.clone();
     c.x = Math.round(c.x / texel) * texel;
     c.z = Math.round(c.z / texel) * texel;
     sun.target.position.copy(c);
-    sun.position.copy(c).addScaledVector(SUN_DIR, 280);
+    sun.position.copy(c).addScaledVector(SUN_DIR, 500);
     if (Math.abs(e - shadowExtent) > shadowExtent * 0.04) {
       shadowExtent = e;
       sc.left = sc.bottom = -e;
@@ -118,7 +118,7 @@ export function createStage(container) {
       sc.updateProjectionMatrix();
     }
   };
-  scene.fog = new THREE.Fog(DAY.skyBottom.clone(), 600, 2200);
+  scene.fog = new THREE.Fog(DAY.skyBottom.clone(), 1300, 4800);
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
@@ -223,13 +223,17 @@ export function createStage(container) {
  * Merge all static meshes that share a material into one draw call each.
  * Meshes flagged `userData.keepSeparate` (signs, facades, water) stay as-is.
  */
-export function bakeStatic(root) {
+export function bakeStatic(root, { lod = false } = {}) {
   root.updateMatrixWorld(true);
   const buckets = new Map();
   const toRemove = [];
+  // With `lod`, small parts (lanterns, AC units, signs…) are grouped into
+  // 60-unit chunks so they can be hidden when the camera is far away.
+  let chunk = '';
   const add = (material, g) => {
-    if (!buckets.has(material.uuid)) buckets.set(material.uuid, { material, geos: [] });
-    buckets.get(material.uuid).geos.push(g);
+    const key = material.uuid + chunk;
+    if (!buckets.has(key)) buckets.set(key, { material, geos: [], detail: chunk !== '' });
+    buckets.get(key).geos.push(g);
   };
   root.traverse((o) => {
     if (!o.isMesh || o.isInstancedMesh || o.userData.keepSeparate) return;
@@ -239,6 +243,13 @@ export function bakeStatic(root) {
     for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(name)) g.deleteAttribute(name);
     if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
     if (!g.attributes.normal) g.computeVertexNormals();
+    chunk = '';
+    if (lod) {
+      g.computeBoundingSphere();
+      const { center, radius } = g.boundingSphere;
+      // signs are unreadable from afar, so they count as detail up to a larger size
+      if (radius < 1.6 || (o.userData.sign && radius < 6)) chunk = `|${Math.floor(center.x / 60)},${Math.floor(center.z / 60)}`;
+    }
     if (Array.isArray(o.material)) {
       // Multi-material mesh (facades, signs): split it into one piece per material group
       for (const grp of groups) {
@@ -263,12 +274,17 @@ export function bakeStatic(root) {
     o.geometry.dispose();
   }
   const baked = new THREE.Group();
-  for (const { material, geos } of buckets.values()) {
+  const details = [];
+  for (const { material, geos, detail } of buckets.values()) {
     const merged = mergeGeometries(geos, false);
     geos.forEach((g) => g.dispose());
     const mesh = new THREE.Mesh(merged, material);
     mesh.castShadow = !material.transparent;
     mesh.receiveShadow = true;
+    if (detail) {
+      merged.computeBoundingSphere();
+      details.push(mesh);
+    }
     baked.add(mesh);
   }
   root.add(baked);
@@ -279,5 +295,5 @@ export function bakeStatic(root) {
       o.receiveShadow = true;
     }
   });
-  return { drawCalls: buckets.size, merged: toRemove.length };
+  return { drawCalls: buckets.size, merged: toRemove.length, details };
 }

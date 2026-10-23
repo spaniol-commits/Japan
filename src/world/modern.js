@@ -6,7 +6,7 @@ import { roof } from '../core/roof.js';
 import { sign } from '../core/signs.js';
 import { tint, tintGlow } from '../core/palette.js';
 import { LOC } from '../locations.js';
-import { WORLD, RIVER, AVENUE, AVENUES, STREETS, BLOCK_X, BLOCK_Z, SIDEWALK_H, RAIL, PARKS, SKYTREE } from './layout.js';
+import { WORLD, RIVER, AVENUE, AVENUES, STREETS, BLOCKS, SIDEWALK_H, RAIL, PARKS, SKYTREE, ARCADE, FUKUYA, COAST } from './layout.js';
 import * as P from './props.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -35,11 +35,11 @@ export function buildModern(root) {
     { x0: RAIL.x0, x1: RAIL.x1, z0: RAIL.z - 3.6, z1: RAIL.z + 3.6 }, // under the viaduct
     rect([SKYTREE.x, SKYTREE.z], 16, 16),
     ...PARKS,
+    { x0: ARCADE.x0 - 2, x1: ARCADE.x1 + 2, z0: ARCADE.z0 - 5.5, z1: ARCADE.z1 + 5.5 }, // shopping arcade
+    rect([FUKUYA.x, FUKUYA.z], 13, 11),
   ];
 
-  for (const [bx0, bx1] of BLOCK_X) {
-    for (const [bz0, bz1] of BLOCK_Z) fillBlock(root, bx0, bx1, bz0, bz1, reserved, rand);
-  }
+  for (const b of BLOCKS) fillBlock(root, b.x0, b.x1, b.z0, b.z1, reserved, rand);
 
   konbini(root, ...LOC.konbini.pos, Math.PI);
   koban(root, ...LOC.koban.pos, 0);
@@ -75,7 +75,7 @@ function fillBlock(root, bx0, bx1, bz0, bz1, reserved, rand) {
       const cx = (lot.x0 + lot.x1) / 2;
       const cz = (lot.z0 + lot.z1) / 2;
       // Low near the river, rising to a skyscraper core downtown
-      const core = Math.max(0, 1 - Math.hypot(cx - 82, cz * 1.4) / 85);
+      const core = Math.max(0, 1 - Math.hypot(cx - 82, cz * 1.4) / 85, 0.9 - Math.hypot(cx - 225, (cz + 140) * 1.2) / 80);
       const h = 5 + rand() * 11 + core * core * (8 + rand() * 42) + Math.min(cx, 40) * 0.08;
       // Which face looks onto a road? Prefer an avenue.
       const faces = [];
@@ -416,7 +416,7 @@ function streetFurniture(root, rand) {
   const inPark = (x, z) => PARKS.some((p) => x > p.x0 && x < p.x1 && z > p.z0 && z < p.z1);
   // Street trees and lamps along the avenues
   for (const a of AVENUES) {
-    for (const [bx0, bx1] of BLOCK_X) {
+    for (const { x0: bx0, x1: bx1 } of BLOCKS.filter((b) => b.z0 === a.z1)) {
       for (let x = bx0 + 3; x < bx1 - 1.5; x += 7) {
         for (const [z, ry] of [
           [a.z0 - 1.0, Math.PI],
@@ -424,6 +424,7 @@ function streetFurniture(root, rand) {
         ]) {
           if (x > 26 && x < 40 && z < 0 && z > -10) continue; // station plaza already has trees
           if (Math.abs(x - SKYTREE.x) < 8 && Math.abs(z - SKYTREE.z) < 8) continue;
+          if (Math.abs(x - FUKUYA.x) < 7 && Math.abs(z - FUKUYA.z) < 7) continue;
           P.tree(root, x, z, 0.9, rand).position.y = Y;
           if (x + 3.5 < bx1 - 0.5) P.streetLamp(root, x + 3.5, z, ry === 0 ? Math.PI : 0).position.y = Y;
         }
@@ -439,7 +440,7 @@ function streetFurniture(root, rand) {
   }
   // Lamps along the cross streets
   for (const s of STREETS) {
-    for (let z = WORLD.z0 + 4; z < WORLD.z1; z += 11) {
+    for (let z = s.z0 + 4; z < s.z1; z += 11) {
       if (AVENUES.some((a) => z > a.z0 - 3 && z < a.z1 + 3) || Math.abs(z - RAIL.z) < 4) continue;
       P.streetLamp(root, s.x0 - 0.8, z, Math.PI / 2).position.y = Y;
       P.streetLamp(root, s.x1 + 0.8, z, -Math.PI / 2).position.y = Y;
@@ -454,7 +455,7 @@ function streetFurniture(root, rand) {
   ])
     P.vendingMachine(root, x, z, ry, c).position.y = Y;
   // Willow-ish trees on the riverside promenade
-  for (let z = WORLD.z0 + 6; z < WORLD.z1; z += 12) {
+  for (let z = WORLD.z0 + 6; z < COAST - 30; z += 12) {
     if (AVENUES.some((a) => z > a.z0 - 2 && z < a.z1 + 2) || Math.abs(z - RAIL.z) < 4) continue;
     P.tree(root, RIVER.x1 + 1, z, 1.1, rand).position.y = Y;
   }

@@ -12,10 +12,13 @@ const matCache = new Map();
  * Canvas texture with Japanese text. `vertical` stacks characters top-to-bottom
  * like the hanging signs in Japanese streets. Lines are separated with "\n".
  */
-export function textTexture(text, { bg = '#ffffff', fg = '#000000', font = FONT_SANS, weight = 700, vertical = false, aspect = 3, border = null } = {}) {
-  bg = tint(bg);
-  fg = tint(fg);
-  if (border) border = tint(border);
+export function textTexture(text, { bg = '#ffffff', fg = '#000000', font = FONT_SANS, weight = 700, vertical = false, aspect = 3, border = null, raw = false } = {}) {
+  // `raw` keeps brand-critical colours (like a red logo) out of the theme tint
+  if (!raw) {
+    bg = tint(bg);
+    fg = tint(fg);
+    if (border) border = tint(border);
+  }
   const key = [text, bg, fg, font, weight, vertical, aspect, border].join('|');
   if (texCache.has(key)) return texCache.get(key);
 
@@ -83,20 +86,21 @@ export function sign(parent, text, w, h, opts = {}, x = 0, y = 0, z = 0, ry = 0)
     }
     matCache.set(faceKey, face);
   }
-  const edgeColor = tint(opts.frame ?? opts.bg ?? '#333');
+  const edgeColor = opts.raw ? opts.frame ?? opts.bg ?? '#333' : tint(opts.frame ?? opts.bg ?? '#333');
   let edge = matCache.get(edgeColor);
   if (!edge) matCache.set(edgeColor, (edge = new THREE.MeshStandardMaterial({ color: edgeColor, roughness: 0.8 })));
   const depth = opts.depth ?? 0.12;
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, depth), [edge, edge, edge, edge, face, opts.backFace ? face : edge]);
   m.position.set(x, y + h / 2, z);
   m.rotation.y = ry;
+  m.userData.sign = true;
   parent.add(m);
   return m;
 }
 
 /** Every string drawn on a sign, so fonts can be preloaded before textures are painted. */
 export const SIGN_TEXT =
-  '楽寿司すしラーメン一番屋駅交番KOBANコンビニ24HホテルHOTEL茶屋お茶甘味処神社五重塔旅館居酒屋カラオケカフェ薬ドラッグ本屋銀行ATM歯科不動産ラーメンうどん酒焼鳥中央口STATIONCONVENIENCE営業中ゲームセンターパチンコ東京寿亭花月堂0123456789まつりようこそWELCOMEJAPAN日本そば米魚八百屋豆腐団子城天守閣富士山スカイツリー公園BIM';
+  '楽寿司すしラーメン一番屋駅交番KOBANコンビニ24HホテルHOTEL茶屋お茶甘味処神社五重塔旅館居酒屋カラオケカフェ薬ドラッグ本屋銀行ATM歯科不動産ラーメンうどん酒焼鳥中央口STATIONCONVENIENCE営業中ゲームセンターパチンコ東京寿亭花月堂0123456789まつりようこそWELCOMEJAPAN日本そば米魚八百屋豆腐団子城天守閣富士山スカイツリー公園BIMたこ焼き花屋パン靴時計果物雑貨お菓子おもちゃメガネ古着商店街服ファッションFASHION東京駅新幹線SHINKANSENフェリー乗り場空港AIRPORT博物館ゆ♨温泉おみやげまんじゅう';
 
 export async function loadFonts() {
   if (!document.fonts) return;

@@ -5,6 +5,7 @@ import { loadFonts } from './core/signs.js';
 import { buildTerrain } from './world/terrain.js';
 import { buildOldTown } from './world/oldtown.js';
 import { buildOutskirts } from './world/outskirts.js';
+import { buildExpansion } from './world/expansion.js';
 import { buildModern } from './world/modern.js';
 import { buildLife } from './world/life.js';
 import { LOCATIONS } from './locations.js';
@@ -22,8 +23,9 @@ async function main() {
   buildTerrain(city);
   buildOldTown(city);
   buildOutskirts(city);
+  const updateExpansion = buildExpansion(city, stage.scene);
   buildModern(city);
-  const stats = bakeStatic(city);
+  const stats = bakeStatic(city, { lod: true });
   const updateLife = buildLife(stage.scene, stage);
   stage.scene.traverse((o) => {
     if (o.isInstancedMesh) o.frustumCulled = false;
@@ -92,7 +94,7 @@ async function main() {
     onTrainerAction: trainerAction,
     onSpeak: () => talk({ pitch: 1 }),
     onSelect: (loc) => (meeting++, stage.flyTo(new THREE.Vector3(loc.pos[0], loc.labelY * 0.35, loc.pos[1]), 28 + loc.labelY * 1.4, 1.4, loc.facing)),
-    onOverview: () => (meeting++, stage.flyTo(new THREE.Vector3(0, 0, 0), 430, 1.8)),
+    onOverview: () => (meeting++, stage.flyTo(new THREE.Vector3(0, 0, 0), 920, 2.0)),
     onNight: (on) => stage.setNight(on),
   });
 
@@ -121,16 +123,23 @@ async function main() {
   stage.controls.addEventListener('start', () => stage.cancelFlight());
 
   const timer = new THREE.Timer();
+  let lodTimer = 0;
   stage.renderer.setAnimationLoop((now) => {
     timer.update(now);
     const dt = Math.min(timer.getDelta(), 0.05);
     updateLife(dt, timer.getElapsed());
+    updateExpansion(dt, timer.getElapsed());
+    // Small details only near the camera
+    if ((lodTimer -= dt) <= 0) {
+      lodTimer = 0.25;
+      for (const m of stats.details) m.visible = m.geometry.boundingSphere.center.distanceTo(stage.camera.position) < 260;
+    }
     bim.update(dt, timer.getElapsed(), stage.camera);
     stage.update(dt);
   });
 
   // Gentle intro flight
-  stage.flyTo(new THREE.Vector3(-10, 4, 0), 370, 2.6);
+  stage.flyTo(new THREE.Vector3(-10, 4, 0), 860, 2.8);
   ui.ready();
   console.info(`[machi] baked ${stats.merged} meshes into ${stats.drawCalls} draw calls`);
   window.__machi = { stage, stats, bim };

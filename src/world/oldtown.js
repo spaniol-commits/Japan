@@ -290,7 +290,7 @@ function shrine(parent, x, z) {
 }
 
 /** Five-storey pagoda on a stone platform, surrounded by a low wall and cypresses. */
-function pagoda(parent, x, z) {
+export function pagoda(parent, x, z) {
   const g = group(parent, x, 0, z, Math.PI / 12);
   const plum = mat(C.roofPlum);
   const posts = mat('#5b2440');
@@ -347,7 +347,7 @@ function pagoda(parent, x, z) {
 }
 
 /** Traditional inn: wide veranda, shoji walls and layered brown roofs. */
-function ryokan(parent, x, z, ry) {
+export function ryokan(parent, x, z, ry) {
   const g = group(parent, x, 0, z, ry);
   const brown = mat('#7b3f24');
   const posts = mat(C.woodDark);

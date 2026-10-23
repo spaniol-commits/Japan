@@ -4,7 +4,7 @@ import { tint, tintGlow } from '../core/palette.js';
 import { box, cyl, rng, pick } from '../core/geo.js';
 import { WORLD, STREETS, POND, RAIL } from './layout.js';
 import { LOC } from '../locations.js';
-import { bakeStatic } from '../scene.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /**
  * Things that move: cars, the commuter train, koi in the pond and drifting
@@ -15,7 +15,7 @@ export function buildLife(root, view) {
   return (dt, t) => updates.forEach((u) => u(dt, t));
 }
 
-function car(parent, color, kind) {
+function carModel(color, kind) {
   const g = new THREE.Group();
   const body = mat(color, { roughness: 0.4, flatShading: false });
   const glass = mat('#2b3946', { roughness: 0.2 });
@@ -27,7 +27,7 @@ function car(parent, color, kind) {
   } else if (kind === 'taxi') {
     box(g, 1.7, 0.75, 3.8, body, 0, 0.3, 0);
     box(g, 1.55, 0.65, 2.0, glass, 0, 1.05, -0.2);
-    box(g, 0.5, 0.25, 0.25, glowMat('#ffe28a', '#ffd34d', 1.5, 0.3), 0, 1.7, -0.2);
+    box(g, 0.5, 0.25, 0.25, mat('#ffe28a'), 0, 1.7, -0.2);
   } else {
     box(g, 1.7, 0.7, 3.8, body, 0, 0.3, 0);
     box(g, 1.55, 0.6, 2.1, glass, 0, 1.0, -0.3);
@@ -39,38 +39,76 @@ function car(parent, color, kind) {
       w.rotation.z = Math.PI / 2;
       w.position.y = 0.33;
     }
-    box(g, 0.35, 0.18, 0.06, glowMat('#fffbe8', '#fff3c4', 2.2, 0.2), sx * 0.7, 0.55, len);
-    box(g, 0.35, 0.15, 0.06, glowMat('#c0392b', '#ff2a2a', 2.0, 0.3), sx * 0.7, 0.6, -len);
+    box(g, 0.35, 0.18, 0.06, mat('#fffbe8'), sx * 0.7, 0.55, len);
+    box(g, 0.35, 0.15, 0.06, mat('#ff4a4a'), sx * 0.7, 0.6, -len);
   }
-  bakeStatic(g); // one draw call per material instead of one per part
-  parent.add(g);
-  return g;
+  // Flatten into one geometry, colouring each part through vertex colours
+  g.updateMatrixWorld(true);
+  const parts = [];
+  g.traverse((o) => {
+    if (!o.isMesh) return;
+    const geo = o.geometry.clone().applyMatrix4(o.matrixWorld).toNonIndexed();
+    const c = o.material.color;
+    const n = geo.attributes.position.count;
+    const col = new Float32Array(n * 3);
+    for (let k = 0; k < n; k++) col.set([c.r, c.g, c.b], k * 3);
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.deleteAttribute('uv');
+    parts.push(geo);
+  });
+  return mergeGeometries(parts, false);
 }
 
+/**
+ * Traffic on every street. Cars are instanced per model and colour, so a few
+ * hundred cars cost about a dozen draw calls.
+ */
 function cars(root) {
   const rand = rng(77);
   const colors = ['#f2f2f2', '#d64545', '#2f6fb3', '#2a2a2a', '#c9c9c9', '#f2c14e', '#5aa36b'];
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45 });
+  const variants = new Map();
   const list = [];
-  const span = WORLD.z1 - WORLD.z0;
   for (const s of STREETS) {
+    const span = s.z1 - s.z0;
     for (const dir of [1, -1]) {
       const x = dir > 0 ? s.x1 - 1.5 : s.x0 + 1.5;
-      for (let i = 0; i < 4; i++) {
+      const n = Math.max(2, Math.round(span / 45));
+      for (let i = 0; i < n; i++) {
         const kind = rand() < 0.25 ? 'taxi' : rand() < 0.5 ? 'kei' : 'sedan';
-        const g = car(root, kind === 'taxi' ? pick(rand, ['#f5c518', '#2e7d32', '#1a1a1a']) : pick(rand, colors), kind);
-        g.position.set(x, 0, WORLD.z0 + rand() * span);
-        g.rotation.y = dir > 0 ? 0 : Math.PI;
-        list.push({ g, dir, speed: 5 + rand() * 4 });
+        const color = kind === 'taxi' ? pick(rand, ['#f5c518', '#2e7d32', '#1a1a1a']) : pick(rand, colors);
+        const key = kind + color;
+        if (!variants.has(key)) variants.set(key, { geo: carModel(color, kind), cars: [] });
+        const c = { x, z: s.z0 + rand() * span, z0: s.z0 + 1.5, z1: s.z1 - 1.5, dir, speed: 5 + rand() * 4 };
+        variants.get(key).cars.push(c);
+        list.push(c);
       }
     }
   }
+  const meshes = [...variants.values()].map(({ geo, cars }) => {
+    const m = new THREE.InstancedMesh(geo, material, cars.length);
+    m.castShadow = true;
+    m.frustumCulled = false;
+    m.userData.keepSeparate = true;
+    root.add(m);
+    return { m, cars };
+  });
+  const o = new THREE.Object3D();
   return (dt) => {
     for (const c of list) {
-      let z = c.g.position.z + c.dir * c.speed * dt;
-      // Wrap around the diorama edge
-      if (z > WORLD.z1 - 1.5) z = WORLD.z0 + 1.5;
-      if (z < WORLD.z0 + 1.5) z = WORLD.z1 - 1.5;
-      c.g.position.z = z;
+      c.z += c.dir * c.speed * dt;
+      // wrap around at the ends of the street
+      if (c.z > c.z1) c.z = c.z0;
+      if (c.z < c.z0) c.z = c.z1;
+    }
+    for (const { m, cars } of meshes) {
+      cars.forEach((c, i) => {
+        o.position.set(c.x, 0, c.z);
+        o.rotation.y = c.dir > 0 ? 0 : Math.PI;
+        o.updateMatrix();
+        m.setMatrixAt(i, o.matrix);
+      });
+      m.instanceMatrix.needsUpdate = true;
     }
   };
 }
@@ -184,9 +222,9 @@ function petals(root, view) {
   return (dt, t) => {
     centre.copy(view.controls.target);
     const dist = view.camera.position.distanceTo(centre);
-    const S = THREE.MathUtils.clamp(dist * 1.1, 50, 460);
-    const H = THREE.MathUtils.clamp(dist * 0.32, 14, 90);
-    const scale = THREE.MathUtils.clamp(dist / 70, 1, 4.5);
+    const S = THREE.MathUtils.clamp(dist * 1.1, 50, 900);
+    const H = THREE.MathUtils.clamp(dist * 0.32, 14, 160);
+    const scale = THREE.MathUtils.clamp(dist / 70, 1, 9);
     // Slowly veering breeze with occasional gusts
     const gust = 1 + 0.8 * Math.max(0, Math.sin(t * 0.21) * Math.sin(t * 0.13));
     const wx = Math.cos(t * 0.05) * 1.8 * gust;

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { C, mat } from '../core/materials.js';
 import { THEME } from '../core/palette.js';
 import { box, cyl, group, beam, rng } from '../core/geo.js';
-import { WORLD, RIVER, MAIN_STREET, POND, AVENUES, STREETS, BLOCK_X, BLOCK_Z, SIDEWALK_H, PARKS } from './layout.js';
+import { WORLD, RIVER, MAIN_STREET, POND, AVENUES, STREETS, BLOCKS, SIDEWALK_H, PARKS, COAST, SEA, AIRPORT } from './layout.js';
 import { rock } from './props.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -33,18 +33,24 @@ export function buildTerrain(root) {
 
   // Deep base of the diorama (visible as the earthen cross-section).
   slab(root, x0, x1, -depth, RIVER.bed, z0, z1, soilDark);
-  // Riverbed sand
-  slab(root, RIVER.x0, RIVER.x1, RIVER.bed, RIVER.bed + 0.3, z0, z1, mat('#cdbb8c'));
+  // River- and seabed sand
+  slab(root, RIVER.x0, RIVER.x1, RIVER.bed, RIVER.bed + 0.3, z0, COAST, mat('#cdbb8c'));
+  slab(root, SEA.x0, SEA.x1, RIVER.bed, RIVER.bed + 0.3, SEA.z0, SEA.z1, mat('#cdbb8c'));
 
-  // West bank (old town): sandy-gravel ground, stone embankment facing the river.
+  // West bank (old town): sandy-gravel ground, stone embankment facing the river and the sea.
   const oldTop = mat('#d4c19b');
-  slab(root, x0, RIVER.x0, RIVER.bed, 0, z0, z1, [embankment, soil, oldTop, soil, soil, soil]);
-  // East bank (modern): asphalt on top, concrete embankment.
-  slab(root, RIVER.x1, x1, RIVER.bed, 0, z0, z1, [soil, mat('#9a9993'), mat(C.asphalt), soil, soil, soil]);
+  slab(root, x0, RIVER.x0, RIVER.bed, 0, z0, COAST, [embankment, soil, oldTop, soil, embankment, soil]);
+  // East bank (modern): asphalt on top, concrete quay walls.
+  const quay = mat('#9a9993');
+  slab(root, RIVER.x1, AIRPORT.x0, RIVER.bed, 0, z0, COAST, [soil, quay, mat(C.asphalt), soil, quay, soil]);
+  // Airport land reaches the south edge of the diorama
+  slab(root, AIRPORT.x0, x1, RIVER.bed, 0, z0, z1, [soil, quay, mat(C.asphalt), soil, soil, soil]);
 
-  // Water — a translucent block so the diorama edge shows a turquoise cross-section.
-  const water = slab(root, RIVER.x0, RIVER.x1, RIVER.bed + 0.3, RIVER.surface, z0, z1, waterMaterial);
+  // Water — translucent blocks so the diorama edge shows a turquoise cross-section.
+  const water = slab(root, RIVER.x0, RIVER.x1, RIVER.bed + 0.3, RIVER.surface, z0, COAST, waterMaterial);
   water.userData.keepSeparate = true;
+  const sea = slab(root, SEA.x0, SEA.x1, RIVER.bed + 0.3, RIVER.surface, SEA.z0, SEA.z1, waterMaterial);
+  sea.userData.keepSeparate = true;
 
   buildOldGround(root);
   buildStreets(root);
@@ -55,8 +61,8 @@ function buildOldGround(root) {
   const path = mat(C.path);
   const paving = mat('#bfae90');
   // Main street with stepping-stone paving
-  slab(root, WORLD.x0 + 1, RIVER.x0, 0, 0.06, MAIN_STREET.z0, MAIN_STREET.z1, path);
-  for (let x = WORLD.x0 + 2; x < RIVER.x0; x += 1.6) {
+  slab(root, -150, RIVER.x0, 0, 0.06, MAIN_STREET.z0, MAIN_STREET.z1, path);
+  for (let x = -148; x < RIVER.x0; x += 1.6) {
     for (const z of [-1.4, 0, 1.4]) box(root, 1.3, 0.04, 1.2, paving, x + (z === 0 ? 0.8 : 0), 0.06, z);
   }
   // Shrine approach (sandō) heading north to the shrine hall
@@ -98,15 +104,13 @@ function buildStreets(root) {
   const onAvenue = (z, pad = 0) => AVENUES.some((a) => z > a.z0 - pad && z < a.z1 + pad);
 
   // Raised sidewalk blocks with a curb rim (parks get grass instead)
-  for (const [bx0, bx1] of BLOCK_X) {
-    for (const [bz0, bz1] of BLOCK_Z) {
-      const park = PARKS.some((p) => p.x0 === bx0 && p.z0 === bz0);
-      slab(root, bx0, bx1, 0, SIDEWALK_H, bz0, bz1, park ? mat(C.grass) : walk);
-      slab(root, bx0, bx1, 0, SIDEWALK_H + 0.02, bz0, bz0 + 0.3, curb);
-      slab(root, bx0, bx1, 0, SIDEWALK_H + 0.02, bz1 - 0.3, bz1, curb);
-      slab(root, bx0, bx0 + 0.3, 0, SIDEWALK_H + 0.02, bz0, bz1, curb);
-      slab(root, bx1 - 0.3, bx1, 0, SIDEWALK_H + 0.02, bz0, bz1, curb);
-    }
+  for (const { x0: bx0, x1: bx1, z0: bz0, z1: bz1 } of BLOCKS) {
+    const park = PARKS.some((p) => p.x0 === bx0 && p.z0 === bz0);
+    slab(root, bx0, bx1, 0, SIDEWALK_H, bz0, bz1, park ? mat(C.grass) : walk);
+    slab(root, bx0, bx1, 0, SIDEWALK_H + 0.02, bz0, bz0 + 0.3, curb);
+    slab(root, bx0, bx1, 0, SIDEWALK_H + 0.02, bz1 - 0.3, bz1, curb);
+    slab(root, bx0, bx0 + 0.3, 0, SIDEWALK_H + 0.02, bz0, bz1, curb);
+    slab(root, bx1 - 0.3, bx1, 0, SIDEWALK_H + 0.02, bz0, bz1, curb);
   }
 
   // Avenue centre lines and lane dashes
@@ -122,7 +126,7 @@ function buildStreets(root) {
   // Street dashes
   for (const s of STREETS) {
     const cx = (s.x0 + s.x1) / 2;
-    for (let z = WORLD.z0 + 1; z < WORLD.z1; z += 4) {
+    for (let z = s.z0 + 1; z < s.z1 - 2; z += 4) {
       if (onAvenue(z, 3)) continue;
       slab(root, cx - 0.08, cx + 0.08, 0, 0.02, z, z + 2, white);
     }
@@ -131,6 +135,7 @@ function buildStreets(root) {
   // Zebra crossings around each intersection
   for (const a of AVENUES) {
     for (const s of STREETS) {
+      if (s.z0 > a.z0) continue; // street doesn't cross this avenue
       for (const zEdge of [a.z0 - 2.2, a.z1 + 0.4]) {
         for (let x = s.x0 + 0.4; x < s.x1 - 0.3; x += 0.9) slab(root, x, x + 0.5, 0, 0.025, zEdge, zEdge + 1.8, white);
       }
@@ -141,12 +146,12 @@ function buildStreets(root) {
   }
 
   // Riverside promenade on the east bank, railing broken where avenues meet the river
-  slab(root, RIVER.x1, RIVER.x1 + 2, 0, SIDEWALK_H, WORLD.z0, WORLD.z1, walk);
-  for (let z = WORLD.z0 + 0.5; z < WORLD.z1; z += 2) {
+  slab(root, RIVER.x1, RIVER.x1 + 2, 0, SIDEWALK_H, WORLD.z0, COAST, walk);
+  for (let z = WORLD.z0 + 0.5; z < COAST; z += 2) {
     if (onAvenue(z, 1)) continue;
     box(root, 0.08, 1.0, 0.08, rail, RIVER.x1 + 0.25, SIDEWALK_H, z);
   }
-  const edges = [WORLD.z0, ...AVENUES.slice().sort((a, b) => a.z0 - b.z0).flatMap((a) => [a.z0 - 0.5, a.z1 + 0.5]), WORLD.z1];
+  const edges = [WORLD.z0, ...AVENUES.slice().sort((a, b) => a.z0 - b.z0).flatMap((a) => [a.z0 - 0.5, a.z1 + 0.5]), COAST];
   for (let i = 0; i < edges.length; i += 2) slab(root, RIVER.x1 + 0.2, RIVER.x1 + 0.3, SIDEWALK_H + 0.95, SIDEWALK_H + 1.05, edges[i], edges[i + 1], rail);
 }
 

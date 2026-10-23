@@ -51,6 +51,8 @@ export function createUI({ locations, trainer, onSelect, onOverview, onNight, on
   const groups = [
     ['old', '昔の町', 'Old town'],
     ['modern', '今の町', 'Modern city'],
+    ['travel', '旅', 'Travel'],
+    ['leisure', '遊び', 'Leisure & nature'],
   ];
   list.innerHTML =
     `<section class="trainer-entry">

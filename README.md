@@ -1,7 +1,7 @@
 # Machi de Nihongo · 街で日本語
 
 Learn Japanese for real-life situations by exploring a 3D diorama of a Japanese town.
-It's part Edo-period old town and part modern Tokyo, split by a river, on a 270 × 190 m diorama with Mount Fuji rising in the north-west.
+It's part Edo-period old town and part modern Tokyo, split by a river, on a 600 × 430 m diorama with a giant Mount Fuji in the north-west, a bay along the south coast and an airport in the south-east.
 
 ## Run it
 
@@ -32,10 +32,12 @@ The API, used by `main.js`, is `play(name)`, `walkTo(points)`, `face(target)`, `
 
 | District | Places (lesson spots) | Scenery |
 | --- | --- | --- |
-| 昔の町 Old town (west) | 寿司屋 sushi restaurant, ラーメン屋 ramen shop, 茶屋 tea house, 神社 shrine, 五重塔 pagoda, 旅館 ryokan, 城 castle, 富士山 Mount Fuji | 富士山 with a snowcap and cedar forests, a lake with a torii, a village along the main street, rice paddies with thatched farmhouses, a castle with ramparts, turrets and a moat, a torii tunnel, a koi pond, a fire-watch tower and a town gate |
-| 今の町 Modern city (east) | コンビニ konbini, 交番 police box (asking directions), 駅 station, ホテル hotel | a grid of 3 avenues and 6 streets rising to a skyscraper core, a Skytree-style tower, parks with sakura, an elevated railway with a train that stops at the station, and traffic |
+| 昔の町 Old town | 寿司屋 sushi, ラーメン屋 ramen, 茶屋 tea house, 神社 shrine, 五重塔 pagoda, 旅館 ryokan, 城 castle | the Edo-style core, a village, rice paddies, the castle with its moat |
+| 今の町 Modern city | コンビニ konbini, 交番 police box, 駅 station, ホテル hotel, 服屋 clothing store | a 14-street grid with two skyscraper cores, a Skytree-style tower, a covered 商店街 shopping arcade, an elevated railway |
+| 旅 Travel | 新幹線 Shinkansen terminal, 空港 airport, 港 harbour & ferry | a bullet train that crosses the map and stops at a Tokyo Station-style terminal; a runway, terminal, tower and a plane that takes off, circles the city and lands; quays, cranes, a container ship, red-brick warehouses, a Ferris wheel, a ferry crossing the bay and lighthouses |
+| 遊び Leisure & nature | 温泉 onsen, 公園 park, 富士山 Mount Fuji | an onsen valley with inns, a bathhouse, steaming outdoor baths and red bridges; a central park with a lake, swan boats, a sakura avenue, a shrine and a museum; Fuji with forests, two lakes and a Chūreitō-style pagoda on a hill; tea fields, farms, orchards and a pine-lined beach |
 
-Three bridges cross the river. Sakura petals ride a shifting breeze around wherever the camera is looking.
+Bridges cross the river, and sakura petals ride a shifting breeze around wherever the camera is looking.
 
 All place data (position, entrance direction, situation, phrases) lives in
 [`src/locations.js`](src/locations.js). Each building is placed from those coordinates.
@@ -61,13 +63,14 @@ src/
     terrain.js       diorama base, river, streets, bridge, pond
     oldtown.js       Edo-style core: shops, shrine, pagoda, ryokan
     outskirts.js     Mount Fuji, forest, lake, village, rice paddies, castle, bridges
+    expansion.js     Shinkansen, harbour, airport, shopping arcade, onsen valley, countryside, central park
     modern.js        modern blocks and landmarks
     props.js         trees, lanterns, torii, poles, vending machines…
     life.js          cars, train, koi, petals
 ```
 
 Everything is built from Three.js primitives in code, so there are no model files to download.
-Static meshes that share a material are merged at startup, and multi-material meshes are split by material first, which turns about 10,000 meshes into roughly 400 draw calls. Building facades share one material per wall colour, with the window grid scaled through UVs. The sun's shadow frustum follows the camera focus and tightens as you zoom in.
+Static meshes that share a material are merged at startup, and multi-material meshes are split by material first, which turns about 31,000 meshes into baked batches. Small parts and signs are grouped into 60-unit chunks that are only drawn near the camera, and cars are instanced. That keeps a frame at roughly 1,500 draw calls for the full overview and fewer at street level. Building facades share one material per wall colour, with the window grid scaled through UVs. The sun's shadow frustum follows the camera focus and tightens as you zoom in.
 
 ## Roadmap
 

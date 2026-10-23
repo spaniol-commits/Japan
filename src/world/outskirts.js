@@ -4,7 +4,7 @@ import { THEME, tint } from '../core/palette.js';
 import { box, cyl, ball, group, beam, rng, pick } from '../core/geo.js';
 import { roof } from '../core/roof.js';
 import { sign, FONT_SERIF } from '../core/signs.js';
-import { WORLD, RIVER, FUJI, LAKE, CASTLE, PADDIES, VILLAGE, AVENUES } from './layout.js';
+import { WORLD, RIVER, FUJI, LAKE, CASTLE, PADDIES, VILLAGE, AVENUES, COAST, FUJI_LAKE, CHUREITO } from './layout.js';
 import { waterMaterial } from './terrain.js';
 import { machiya } from './oldtown.js';
 import * as P from './props.js';
@@ -41,8 +41,8 @@ function grounds(root) {
   const dark = mat(C.grassDark);
   slab(root, WORLD.x0, -60, 0, 0.04, WORLD.z0, -6, dark); // Fuji foothills
   slab(root, -60, RIVER.x0, 0, 0.04, WORLD.z0, -42, dark);
-  slab(root, WORLD.x0, -62, 0, 0.04, 28, WORLD.z1, grass); // paddy country
-  slab(root, -60, RIVER.x0, 0, 0.04, 44, WORLD.z1, grass); // castle park
+  slab(root, -150, -62, 0, 0.04, 28, 104, grass); // paddy country
+  slab(root, -60, RIVER.x0, 0, 0.04, 44, COAST, grass); // castle park
 }
 
 // ---------------------------------------------------------------------------
@@ -96,7 +96,7 @@ function fuji(root) {
   root.add(crater);
 }
 
-function cedar(parent, x, y, z, s, rand) {
+export function cedar(parent, x, y, z, s, rand) {
   const g = group(parent, x, y, z);
   g.scale.setScalar(s);
   cyl(g, 0.12, 0.18, 1.0, mat('#5b4433'), 0, 0, 0, 5);
@@ -111,22 +111,27 @@ function cedar(parent, x, y, z, s, rand) {
 }
 
 function forest(root, rand) {
+  const clear = (x, z) =>
+    Math.hypot((x - LAKE.x) / (LAKE.rx + 2), (z - LAKE.z) / (LAKE.rz + 2)) < 1 ||
+    Math.hypot((x - FUJI_LAKE.x) / (FUJI_LAKE.rx + 2), (z - FUJI_LAKE.z) / (FUJI_LAKE.rz + 2)) < 1 ||
+    Math.hypot(x - CHUREITO.x, z - CHUREITO.z) < 20;
   // Belt on the lower slopes of Fuji
-  for (let i = 0; i < 170; i++) {
+  for (let i = 0; i < 700; i++) {
     const a = rand() * Math.PI * 2;
     const r = FUJI.r * (0.62 + rand() * 0.48);
     const x = FUJI.x + Math.cos(a) * r;
     const z = FUJI.z + Math.sin(a) * r;
     if (x < WORLD.x0 + 1.5 || z < WORLD.z0 + 1.5 || x > -58 || z > -8) continue;
-    if (Math.hypot((x - LAKE.x) / (LAKE.rx + 2), (z - LAKE.z) / (LAKE.rz + 2)) < 1) continue;
+    if (clear(x, z)) continue;
     const y = r < FUJI.r ? fujiHeightAt(r * 0.97) : 0;
     cedar(root, x, y - 0.2, z, 0.8 + rand() * 0.6, rand);
   }
   // Woods north of the shrine
-  for (let i = 0; i < 45; i++) {
-    const x = -60 + rand() * 52;
-    const z = WORLD.z0 + 2 + rand() * 40;
-    if (z > -44 || Math.abs(z - AVENUES[1].z0 - 3) < 4) continue;
+  for (let i = 0; i < 140; i++) {
+    const x = -84 + rand() * 76;
+    const z = WORLD.z0 + 2 + rand() * (WORLD.z1 - WORLD.z0);
+    if (z > -44 || Math.abs(z - AVENUES[1].z0 - 3) < 4 || clear(x, z)) continue;
+    if (Math.hypot(x - FUJI.x, z - FUJI.z) < FUJI.r * 0.95) continue;
     cedar(root, x, 0, z, 0.8 + rand() * 0.5, rand);
   }
 }
@@ -187,7 +192,7 @@ function village(root, rand) {
   P.wires(root, tops);
 }
 
-function farmhouse(parent, x, z, ry) {
+export function farmhouse(parent, x, z, ry) {
   const g = group(parent, x, 0, z, ry);
   box(g, 9, 0.4, 7, mat(C.stoneDark), 0, 0, 0);
   box(g, 8.2, 2.6, 6.2, mat(C.plaster), 0, 0.4, 0);
@@ -406,7 +411,7 @@ function paths(root, rand) {
   for (let x = -24; x < -8; x += 7) P.sakura(root, x, south.z1 + 2.5, 1.0, rand);
 }
 
-function flatBridge(root, z) {
+export function flatBridge(root, z) {
   const g = group(root, 0, 0, z);
   const span = RIVER.x1 - RIVER.x0 + 4;
   box(g, span, 0.3, 4.6, mat(C.woodLight), 0, 0.1, 0);
