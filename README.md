@@ -3,13 +3,23 @@
 Learn Japanese for real-life situations by exploring a 3D diorama of a Japanese town.
 It's part Edo-period old town and part modern Tokyo, split by a river, on a 600 × 430 m diorama with a giant Mount Fuji in the north-west, a bay along the south coast and an airport in the south-east.
 
-## Run it
+## Play it
 
-```bash
-npm install
-npm run dev      # open the printed URL
-npm run build    # static build in dist/ (relative paths, can be hosted anywhere)
-```
+- **One file:** open [`machi-de-nihongo.html`](machi-de-nihongo.html) in Chrome or Edge, either from disk or hosted anywhere. Everything is inside, and only the fonts load from Google Fonts.
+- **Dev server:** run `npm install`, then `npm run dev`, and open the printed URL.
+- **Builds:** `npm run build` creates a static site in `dist/`. `npm run build:html` rebuilds the single-file game.
+
+## The game
+
+Press **▶ Play** on the start screen. It turns on fullscreen and music and opens the **stamp book (御朱印帳)**. Pick a place and Bim pops up there to play the person you'd meet: the sushi chef, the police officer, the onsen receptionist and so on.
+
+- Bim speaks every line aloud with the browser's Japanese voice. The **ro** and **EN** buttons show or hide romaji and English, and 🔊 repeats a line.
+- Each scene has three turns. Answer by tapping the right phrase, or turn on **Answer by speaking 🎤** and say it in Japanese (this uses speech recognition in Chrome or Edge). Your chosen phrase is spoken back so you hear the right pronunciation.
+- A wrong answer gets a short explanation, for example that hitotsu counts things and hitori counts people. After two misses the answer is shown.
+- A right answer on the first try is worth 10 XP, a later right answer 5 XP, and finishing a scene adds 20 XP. Each place gives a stamp with 1–3 stars, and every 100 XP is a new level. Progress is saved in your browser.
+- Sound effects and a soft pentatonic koto melody are synthesised with Web Audio, so there are no audio files. Toggle the music with 🎵 and fullscreen with ⛶.
+
+Scenes live in [`src/game/lessons.js`](src/game/lessons.js), and the game layer is in [`src/game/`](src/game).
 
 ## Controls
 

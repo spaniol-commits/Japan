@@ -12,6 +12,7 @@ import { LOCATIONS } from './locations.js';
 import { createUI, speak } from './ui.js';
 import { createBim } from './trainer/bim.js';
 import { TRAINER } from './trainer/profile.js';
+import { createGame } from './game/game.js';
 import './style.css';
 
 async function main() {
@@ -38,7 +39,6 @@ async function main() {
   bim.root.rotation.y = home.yaw;
   bim.root.scale.setScalar(0.85);
   stage.scene.add(bim.root);
-  const bimFacing = () => [Math.sin(bim.root.rotation.y), Math.cos(bim.root.rotation.y)];
   const talk = (extra = {}) => ({
     pitch: 1.45,
     rate: 0.9,
@@ -55,9 +55,10 @@ async function main() {
   const meetBim = async () => {
     const id = ++meeting;
     stage.follow(null);
-    bim.face(home.yaw);
+    // Bim may be standing at a mission spot; meet him wherever he is
     const pos = bim.root.position;
-    const yaw = home.yaw;
+    const yaw = bim.root.rotation.y;
+    bim.face(yaw);
     stage.flyTo(new THREE.Vector3(pos.x, 1.1, pos.z), 5.4, 1.6, [Math.sin(yaw), Math.cos(yaw)], 0.24, 0.2);
     await new Promise((r) => setTimeout(r, 1500));
     if (id !== meeting) return;
@@ -76,8 +77,10 @@ async function main() {
     if (name === 'walk') {
       if (bim.busy) return;
       stage.follow(bim.root);
-      await bim.walkTo(TRAINER.stroll);
-      bim.face(home.yaw);
+      const from = bim.root.position.clone();
+      const yaw = bim.root.rotation.y;
+      await bim.walkTo(TRAINER.stroll.map(([x, z]) => [from.x + x - home.x, from.z + z - home.z]));
+      bim.face(yaw);
       bim.play('bow');
       return;
     }
@@ -96,7 +99,10 @@ async function main() {
     onSelect: (loc) => (meeting++, stage.flyTo(new THREE.Vector3(loc.pos[0], loc.labelY * 0.35, loc.pos[1]), 28 + loc.labelY * 1.4, 1.4, loc.facing)),
     onOverview: () => (meeting++, stage.flyTo(new THREE.Vector3(0, 0, 0), 920, 2.0)),
     onNight: (on) => stage.setNight(on),
+    onPlay: (id) => game.start(id),
   });
+
+  const game = createGame({ stage, bim, city, locations: LOCATIONS, speak, ui });
 
   // Floating, clickable place labels
   for (const loc of LOCATIONS) {
@@ -134,6 +140,7 @@ async function main() {
       lodTimer = 0.25;
       for (const m of stats.details) m.visible = m.geometry.boundingSphere.center.distanceTo(stage.camera.position) < 260;
     }
+    game.update(dt);
     bim.update(dt, timer.getElapsed(), stage.camera);
     stage.update(dt);
   });
@@ -142,7 +149,7 @@ async function main() {
   stage.flyTo(new THREE.Vector3(-10, 4, 0), 860, 2.8);
   ui.ready();
   console.info(`[machi] baked ${stats.merged} meshes into ${stats.drawCalls} draw calls`);
-  window.__machi = { stage, stats, bim };
+  window.__machi = { stage, stats, bim, game };
 }
 
 main();

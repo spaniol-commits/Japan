@@ -2,12 +2,13 @@
   "name": "machi-de-nihongo",
   "private": true,
   "version": "0.1.0",
-  "description": "Learn Japanese by exploring a 3D diorama city — part old Edo town, part modern Tokyo.",
+  "description": "Learn Japanese by exploring a 3D diorama city \u2014 part old Edo town, part modern Tokyo.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:html": "vite build && node scripts/build-single.mjs"
   },
   "dependencies": {
     "three": "^0.186.1"

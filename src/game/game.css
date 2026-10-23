@@ -1,0 +1,581 @@
+/* Game layer: start screen, HUD, stamp book, dialogue box */
+
+:root {
+  --game-ink: #1f2f52;
+  --game-blue: #5677c9;
+  --game-deep: #2c4a8f;
+  --game-paper: rgba(247, 251, 255, 0.95);
+  --game-good: #2f9e6b;
+  --game-bad: #c8455a;
+  --game-stamp: #d7262e;
+}
+
+/* ---- Start screen ---- */
+.start-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: radial-gradient(ellipse at 50% 30%, rgba(234, 243, 255, 0.55), rgba(140, 170, 230, 0.75));
+  backdrop-filter: blur(3px);
+  transition: opacity 0.6s;
+}
+.start-screen.gone {
+  opacity: 0;
+  pointer-events: none;
+}
+.start-card {
+  width: min(460px, 100%);
+  text-align: center;
+  background: var(--game-paper);
+  border-radius: 22px;
+  padding: 28px 24px 20px;
+  box-shadow: 0 30px 80px rgba(30, 50, 110, 0.35);
+}
+.start-hanko {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 10px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--game-blue);
+  color: #fff;
+  font: 900 36px 'Noto Serif JP', serif;
+  transform: rotate(-5deg);
+}
+.start-card h1 {
+  margin: 0;
+  font-size: 30px;
+  color: var(--game-ink);
+  text-wrap: balance;
+}
+.start-jp {
+  margin: 2px 0 12px;
+  font: 700 18px 'Noto Serif JP', serif;
+  color: var(--game-blue);
+}
+.start-lead {
+  margin: 0 auto 18px;
+  max-width: 36ch;
+  line-height: 1.55;
+  color: #4a5d80;
+}
+.start-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.start-actions button {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 22px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.start-play {
+  background: var(--game-blue);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(86, 119, 201, 0.45);
+}
+.start-play:hover {
+  background: var(--game-deep);
+}
+.start-explore {
+  background: #e6eefc;
+  color: var(--game-ink);
+}
+.start-options {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  font-size: 13.5px;
+  color: #4a5d80;
+}
+.start-options label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+}
+.start-note {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  color: #7b8db0;
+}
+
+/* ---- HUD ---- */
+.hud {
+  position: fixed;
+  top: 96px;
+  left: 16px;
+  display: none;
+  gap: 8px;
+  z-index: 5;
+}
+.playing .hud {
+  display: flex;
+}
+.hud button {
+  border: 0;
+  background: var(--game-paper);
+  box-shadow: 0 8px 22px rgba(40, 70, 130, 0.18);
+  border-radius: 999px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--game-ink);
+}
+.hud .lv {
+  font-weight: 900;
+}
+.hud .bar {
+  width: 90px;
+  height: 8px;
+  border-radius: 99px;
+  background: #dfe8f7;
+  overflow: hidden;
+}
+.hud .bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #7fa3ea, var(--game-blue));
+  transition: width 0.6s;
+}
+.hud .xp {
+  font-variant-numeric: tabular-nums;
+  color: #5b6f95;
+}
+
+/* ---- Stamp book ---- */
+.board {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(40, 60, 110, 0.35);
+}
+.board[hidden] {
+  display: none;
+}
+.board-card {
+  position: relative;
+  width: min(880px, 100%);
+  max-height: calc(100% - 20px);
+  overflow: auto;
+  background: var(--game-paper);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 30px 80px rgba(30, 50, 110, 0.35);
+}
+.board-card h2 {
+  margin: 0;
+  color: var(--game-ink);
+}
+.board-card h2 span {
+  font-family: 'Noto Serif JP', serif;
+  color: var(--game-blue);
+  margin-left: 6px;
+}
+.board-sub {
+  margin: 4px 0 14px;
+  color: #5b6f95;
+}
+.board-card .close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: 0;
+  background: none;
+  font-size: 26px;
+  color: #7b8db0;
+}
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.mission {
+  position: relative;
+  border: 1px solid #dde8f8;
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px 10px 10px;
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  overflow: hidden;
+  transition: transform 0.12s, border-color 0.12s;
+}
+.mission:hover {
+  transform: translateY(-2px);
+  border-color: var(--game-blue);
+}
+.mission b {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 20px;
+  color: var(--game-ink);
+}
+.m-en {
+  font-size: 12px;
+  color: #5b6f95;
+}
+.m-stars {
+  font-size: 13px;
+  color: #e0a526;
+  letter-spacing: 1px;
+}
+.mission:not(.done) .m-stars {
+  color: var(--game-blue);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.m-stamp {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--game-stamp);
+  border-radius: 50%;
+  color: var(--game-stamp);
+  font: 900 10px 'Noto Serif JP', serif;
+  display: grid;
+  place-items: center;
+  transform: rotate(-12deg);
+  opacity: 0.85;
+}
+.mission:not(.done) .m-stamp {
+  display: none;
+}
+
+/* ---- Dialogue box ---- */
+.dialogue {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: min(760px, calc(100% - 32px));
+  z-index: 10;
+  background: var(--game-paper);
+  border-radius: 20px;
+  padding: 14px 16px;
+  box-shadow: 0 20px 60px rgba(30, 50, 110, 0.3);
+  border: 2px solid #d6e2f7;
+  animation: dlg-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.dialogue[hidden] {
+  display: none;
+}
+@keyframes dlg-in {
+  from {
+    transform: translate(-50%, 30px);
+    opacity: 0;
+  }
+}
+.dlg-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.dlg-who {
+  background: var(--game-blue);
+  color: #fff;
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-weight: 700;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.dlg-step {
+  color: #5b6f95;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.dlg-tools {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+.dlg-tools button {
+  border: 1px solid #dde8f8;
+  background: #fff;
+  border-radius: 8px;
+  min-width: 32px;
+  height: 28px;
+  font-size: 12px;
+  color: #8a9abd;
+}
+.dlg-tools button.on {
+  background: #e6eefc;
+  color: var(--game-deep);
+  border-color: #b9cbf0;
+  font-weight: 700;
+}
+.dlg-line {
+  margin: 10px 2px 8px;
+}
+.l-jp {
+  font: 700 clamp(19px, 3.2vw, 26px) 'Noto Sans JP', sans-serif;
+  color: var(--game-ink);
+  line-height: 1.35;
+}
+.l-ro {
+  color: var(--game-blue);
+  font-size: 14px;
+  margin-top: 2px;
+}
+.l-en {
+  color: #5b6f95;
+  font-size: 14px;
+}
+.no-romaji .l-ro,
+.no-romaji .o-ro {
+  display: none;
+}
+.no-en .l-en,
+.no-en .o-en {
+  display: none;
+}
+.dlg-goal {
+  font-size: 14px;
+  color: var(--game-ink);
+  margin-bottom: 8px;
+}
+.goal-tag {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: #fff1d6;
+  color: #9a6a12;
+  border-radius: 6px;
+  padding: 2px 7px;
+  margin-right: 6px;
+}
+.dlg-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+.opt {
+  text-align: left;
+  border: 2px solid #dde8f8;
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 2px;
+  transition: transform 0.1s, border-color 0.1s;
+}
+.opt:hover:not(:disabled) {
+  border-color: var(--game-blue);
+  transform: translateY(-1px);
+}
+.opt:focus-visible,
+.dialogue button:focus-visible,
+.mission:focus-visible,
+.start-actions button:focus-visible {
+  outline: 3px solid #f0b429;
+  outline-offset: 2px;
+}
+.o-jp {
+  font: 700 17px 'Noto Sans JP', sans-serif;
+  color: var(--game-ink);
+}
+.o-ro {
+  font-size: 12.5px;
+  color: var(--game-blue);
+}
+.o-en {
+  font-size: 12.5px;
+  color: #7b8db0;
+}
+.opt.right {
+  border-color: var(--game-good);
+  background: #e9f8f0;
+}
+.opt.wrong {
+  border-color: var(--game-bad);
+  background: #fdecef;
+  opacity: 0.75;
+  animation: shake 0.3s;
+}
+@keyframes shake {
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+.dlg-voice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.dlg-voice[hidden] {
+  display: none;
+}
+.mic {
+  border: 0;
+  background: var(--game-blue);
+  color: #fff;
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-weight: 700;
+}
+.mic.listening {
+  background: var(--game-bad);
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0 8px rgba(200, 69, 90, 0.2);
+  }
+}
+.heard {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 13px;
+  color: #5b6f95;
+}
+.dlg-feedback {
+  min-height: 1.4em;
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--game-ink);
+}
+.dlg-feedback .good {
+  color: var(--game-good);
+}
+.dlg-feedback .bad {
+  color: var(--game-bad);
+}
+.stamp-result {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  justify-content: center;
+  grid-column: 1 / -1;
+}
+.stamp {
+  width: 96px;
+  height: 96px;
+  border: 4px solid var(--game-stamp);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--game-stamp);
+  font: 900 26px 'Noto Serif JP', serif;
+  transform: rotate(-12deg);
+  animation: stamp-in 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes stamp-in {
+  from {
+    transform: rotate(-12deg) scale(2.4);
+    opacity: 0;
+  }
+}
+.sr-stars {
+  font-size: 28px;
+  color: #e0a526;
+  letter-spacing: 2px;
+}
+.sr-xp {
+  font-weight: 800;
+  color: var(--game-blue);
+}
+.sr-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.sr-actions button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-weight: 700;
+  background: #e6eefc;
+  color: var(--game-ink);
+}
+.sr-actions .next {
+  background: var(--game-blue);
+  color: #fff;
+}
+
+/* While a scene runs, keep the screen clear */
+body:has(.dialogue:not([hidden])) #place-list,
+body:has(.dialogue:not([hidden])) .hint,
+body:has(.dialogue:not([hidden])) #place-card,
+body:has(.dialogue:not([hidden])) .place-label {
+  display: none;
+}
+
+/* Night palette */
+.night .start-card,
+.night .board-card,
+.night .dialogue,
+.night .hud button {
+  background: rgba(22, 34, 64, 0.94);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.night .l-jp,
+.night .o-jp,
+.night .mission b,
+.night .hud button,
+.night .dlg-goal,
+.night .dlg-feedback,
+.night .board-card h2 {
+  color: #eef4ff;
+}
+.night .opt,
+.night .mission,
+.night .dlg-tools button {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.playing #place-list {
+  top: 146px;
+  max-height: calc(100vh - 200px);
+}
+@media (max-width: 760px) {
+  .hud {
+    top: 70px;
+  }
+  .hud .bar {
+    width: 56px;
+  }
+  .dialogue {
+    bottom: 64px;
+    max-height: 62vh;
+    overflow: auto;
+    padding: 12px;
+  }
+  .dlg-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialogue,
+  .stamp,
+  .opt.wrong,
+  .mic.listening {
+    animation: none;
+  }
+}

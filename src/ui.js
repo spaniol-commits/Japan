@@ -42,7 +42,7 @@ export function speak(text, { pitch = 1, rate = 0.85, onStart, onEnd } = {}) {
   return true;
 }
 
-export function createUI({ locations, trainer, onSelect, onOverview, onNight, onMeetTrainer, onTrainerAction, onSpeak }) {
+export function createUI({ locations, trainer, onSelect, onOverview, onNight, onMeetTrainer, onTrainerAction, onSpeak, onPlay }) {
   const $ = (sel) => document.querySelector(sel);
   const list = $('#place-list');
   const card = $('#place-card');
@@ -139,8 +139,9 @@ export function createUI({ locations, trainer, onSelect, onOverview, onNight, on
       <p class="situation"><span class="tag">Real-life situation</span>${esc(loc.situation)}</p>
       <h4>Key phrases</h4>
       ${phraseList(loc.phrases)}
-      <div class="trainer-soon"><b>ビム先生</b> Bim will meet you here for role-play lessons — coming next.</div>
+      <button class="play-scene"><b>▶ Play this scene with Bim</b><span>Bim plays the person you meet here. Answer him to earn a stamp.</span></button>
     `;
+    card.querySelector('.play-scene').onclick = () => onPlay?.(loc.id);
     card.classList.add('open');
     card.querySelector('.close').onclick = () => close();
     card.querySelectorAll('.say').forEach((b) => {
@@ -185,6 +186,7 @@ export function createUI({ locations, trainer, onSelect, onOverview, onNight, on
 
   return {
     select,
+    closeCard: () => close(),
     ready: () => {
       loader.classList.add('done');
       setTimeout(() => loader.remove(), 900);
