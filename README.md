@@ -20,8 +20,9 @@ npm run build    # static build in dist/ (relative paths, can be hosted anywhere
 
 ## Bim (ビム先生), the trainer
 
-Bim is a samurai version of a small companion robot. He has a big rounded head with a white face, amber eye rings and ear discs, plus white C-shaped hands and orange-soled feet.
-His samurai gear is a kabuto with ribs and a gold crescent crest, a red neck guard and side flaps, lacquered shoulder guards and waist plates, an obi with a katana, and a 先生 back banner.
+Bim is a samurai version of a small companion robot. He is modelled on a porcelain-blue figure: a big rounded head with blue lens eyes and a forehead dot, and a kabuto with hooked kuwagata horns, a round boss and a swept-back plume.
+His armour is a lamellar neck guard and side flaps, a white breastplate with a BIM name plate and shoulder cords, grid-plated shoulder guards and waist plates, white bracers, ribbed shin guards and chunky shoes.
+He wears a braided rope obi with a knot and tassels, a light-blue katana across the front, and a paw-print banner on an L-shaped pole on his back.
 
 He is built in [`src/trainer/bim.js`](src/trainer/bim.js) with jointed hips, knees, shoulders, elbows and neck, and has these animations:
 idle breathing, blinking, looking at the camera, bow (お辞儀), wave, nod, cheer, walking along a path, and talking (the mouth glows while speech plays).

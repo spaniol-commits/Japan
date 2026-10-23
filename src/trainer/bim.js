@@ -6,8 +6,10 @@ import { THEME, tint, tintGlow } from '../core/palette.js';
 
 /**
  * Bim (ビム), the trainer: a small companion robot in the spirit of Robohon,
- * dressed as a samurai — kabuto helmet with a golden crescent, lacquered
- * shoulder guards and waist plates, an obi with a katana and a back banner.
+ * modelled after the porcelain samurai figure — kabuto with hooked kuwagata
+ * horns and a plume, lamellar neck guard, white breastplate, grid-plated
+ * shoulder guards and waist plates, ribbed shin guards, a rope obi with a
+ * katana worn across the front, and a paw-print banner on an L-shaped pole.
  *
  * About 2.1 units tall. Built facing +z with named pivots so it can idle,
  * blink, bow (ojigi), wave, walk and "talk".
@@ -15,25 +17,159 @@ import { THEME, tint, tintGlow } from '../core/palette.js';
 
 const smooth = { flatShading: false };
 // Bim has his own hand-picked colours per theme: in pastel blue the armour is
-// near-white porcelain and the robot body periwinkle, like the reference figure.
+// porcelain white and the robot body periwinkle, like the reference figure.
 const PASTEL = THEME !== 'classic';
 const bm = (classic, pastel, opts) => (PASTEL ? matExact(pastel, opts) : mat(classic, opts));
+
+// --- Surface detail textures (drawn once on canvases) ------------------------
+
+function canvasTexture(size, draw, color = false) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  draw(c.getContext('2d'), size);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  if (color) t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
+  ctx.fill();
+}
+
+// Lamellar armour: a grid of small raised scales (kozane)
+const lamellarBump = canvasTexture(128, (ctx, S) => {
+  ctx.fillStyle = '#3a3a3a';
+  ctx.fillRect(0, 0, S, S);
+  const n = 4,
+    c = S / n;
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++) {
+      const g = ctx.createLinearGradient(i * c, j * c, i * c + c, j * c + c);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(1, '#b0b0b0');
+      ctx.fillStyle = g;
+      roundRect(ctx, i * c + 4, j * c + 4, c - 8, c - 8, 6);
+    }
+});
+const lamellarMap = canvasTexture(
+  128,
+  (ctx, S) => {
+    ctx.fillStyle = PASTEL ? '#d5e0f6' : '#7a141c';
+    ctx.fillRect(0, 0, S, S);
+    const n = 4,
+      c = S / n;
+    ctx.fillStyle = PASTEL ? '#f6f9ff' : '#b3202b';
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) roundRect(ctx, i * c + 4, j * c + 4, c - 8, c - 8, 6);
+  },
+  true,
+);
+
+// Vertical ribs for the shin guards (suneate)
+const ribBump = canvasTexture(128, (ctx, S) => {
+  for (let i = 0; i < 8; i++) {
+    const g = ctx.createLinearGradient(i * 16, 0, i * 16 + 16, 0);
+    g.addColorStop(0, '#404040');
+    g.addColorStop(0.5, '#ffffff');
+    g.addColorStop(1, '#404040');
+    ctx.fillStyle = g;
+    ctx.fillRect(i * 16, 0, 16, S);
+  }
+});
+ribBump.repeat.set(3, 1);
+
+// Braided rope for the obi and cords
+const braidBump = canvasTexture(64, (ctx, S) => {
+  ctx.fillStyle = '#555';
+  ctx.fillRect(0, 0, S, S);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 6;
+  for (let k = -S; k < S * 2; k += 16) {
+    ctx.beginPath();
+    ctx.moveTo(k, 0);
+    ctx.lineTo(k + S, S);
+    ctx.stroke();
+  }
+});
+braidBump.repeat.set(8, 1);
+
+// Diamond wrapping on the katana hilt (tsuka-ito)
+const hiltMap = canvasTexture(
+  128,
+  (ctx, S) => {
+    ctx.fillStyle = PASTEL ? '#9fb7ee' : '#1d1d22';
+    ctx.fillRect(0, 0, S, S);
+    ctx.fillStyle = PASTEL ? '#f2f6ff' : '#ece5d3';
+    for (let i = 0; i < 4; i++) {
+      const cx = i * 32 + 16;
+      ctx.beginPath();
+      ctx.moveTo(cx, S * 0.2);
+      ctx.lineTo(cx + 12, S / 2);
+      ctx.lineTo(cx, S * 0.8);
+      ctx.lineTo(cx - 12, S / 2);
+      ctx.closePath();
+      ctx.fill();
+    }
+  },
+  true,
+);
+hiltMap.repeat.set(2, 1);
+
+// Banner with a paw-print crest (mon)
+const pawMap = canvasTexture(
+  256,
+  (ctx, S) => {
+    ctx.fillStyle = PASTEL ? '#f4f7ff' : '#f4efe4';
+    ctx.fillRect(0, 0, S, S);
+    const ink = PASTEL ? '#93ace9' : '#b3202b';
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.arc(S / 2, S / 2, S * 0.36, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = ink;
+    ctx.beginPath();
+    ctx.ellipse(S / 2, S * 0.6, S * 0.13, S * 0.11, 0, 0, Math.PI * 2);
+    ctx.fill();
+    for (const [dx, dy, r] of [
+      [-0.16, -0.04, 0.055],
+      [-0.06, -0.15, 0.06],
+      [0.06, -0.15, 0.06],
+      [0.16, -0.04, 0.055],
+    ]) {
+      ctx.beginPath();
+      ctx.ellipse(S / 2 + dx * S, S / 2 + dy * S, r * S, r * S * 1.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+  true,
+);
+
+// --- Materials ----------------------------------------------------------------
+
 const M = {
-  black: bm('#1b1c1f', '#8ea6e4', { ...smooth, roughness: 0.32 }),
-  white: bm('#f5f4f0', '#f4f7ff', { ...smooth, roughness: 0.3, emissive: '#ffffff', emissiveIntensity: 0.06 }),
-  gray: bm('#4a4d52', '#7891d6', { ...smooth, roughness: 0.4 }),
-  lacquer: bm('#b3202b', '#e3ebfc', { ...smooth, roughness: 0.32 }),
-  lacquer2: bm('#9e1c26', '#d3dff8', { ...smooth, roughness: 0.32, side: THREE.DoubleSide }),
-  lacquer3: bm('#b3202b', '#e3ebfc', { ...smooth, roughness: 0.32, side: THREE.DoubleSide }),
-  darkLacquer: bm('#2a1d1c', '#e9effd', { ...smooth, roughness: 0.3 }),
-  gold: bm('#d6a93c', '#b4c6f2', { ...smooth, roughness: 0.3, metalness: PASTEL ? 0.2 : 0.75 }),
-  orange: bm('#ff7a1a', '#a3b8f0', { ...smooth, roughness: 0.4 }),
-  obi: bm('#4b2a6b', '#c8d6f6', { ...smooth, roughness: 0.6 }),
-  hilt: bm('#ece5d3', '#eef3ff', { ...smooth, roughness: 0.7 }),
-  scabbard: bm('#2a1d1c', '#9db3ec', { ...smooth, roughness: 0.3 }),
-  eyeBlack: bm('#0d0d10', '#6d8fdc', { ...smooth, roughness: 0.15 }),
+  body: bm('#1b1c1f', '#9db4ec', { ...smooth, roughness: 0.35 }),
+  joint: bm('#4a4d52', '#89a2e2', { ...smooth, roughness: 0.4 }),
+  white: bm('#f5f4f0', '#f4f7ff', { ...smooth, roughness: 0.32, emissive: '#ffffff', emissiveIntensity: 0.05 }),
+  armor: bm('#f2f2f2', '#f1f5ff', { ...smooth, roughness: 0.4, map: lamellarMap, bumpMap: lamellarBump, bumpScale: 3 }),
+  armorPlain: bm('#b3202b', '#eef3fe', { ...smooth, roughness: 0.35 }),
+  armorSide: bm('#9e1c26', '#e6eefc', { ...smooth, roughness: 0.4, side: THREE.DoubleSide, map: lamellarMap, bumpMap: lamellarBump, bumpScale: 3 }),
+  helm: bm('#2a1d1c', '#f2f6ff', { ...smooth, roughness: 0.3 }),
+  accent: bm('#d6a93c', '#cbdaf7', { ...smooth, roughness: 0.35, metalness: PASTEL ? 0 : 0.7 }),
+  horn: bm('#d6a93c', '#dbe6fb', { ...smooth, roughness: 0.35, metalness: PASTEL ? 0 : 0.7, side: THREE.DoubleSide }),
+  plume: bm('#e8e2d0', '#b9cbf3', { ...smooth, roughness: 0.7 }),
+  rope: bm('#4b2a6b', '#d3dff8', { ...smooth, roughness: 0.6, bumpMap: braidBump, bumpScale: 2 }),
+  shin: bm('#2a1d1c', '#f0f4fe', { ...smooth, roughness: 0.4, bumpMap: ribBump, bumpScale: 3 }),
+  saya: bm('#2a1d1c', '#a9bef0', { ...smooth, roughness: 0.3 }),
+  hilt: bm('#1d1d22', '#ffffff', { ...smooth, roughness: 0.6, map: hiltMap }),
+  sole: bm('#ff7a1a', '#97b0ec', { ...smooth, roughness: 0.45 }),
+  lens: bm('#0d0d10', '#86a3e6', { ...smooth, roughness: 0.15 }),
+  flag: bm('#f4efe4', '#ffffff', { ...smooth, roughness: 0.8, map: pawMap, side: THREE.DoubleSide }),
   eyeRing: PASTEL
-    ? glow(new THREE.MeshStandardMaterial({ color: '#dfe9ff', emissive: '#a9c6ff', roughness: 0.4 }), 2.0, 0.35)
+    ? glow(new THREE.MeshStandardMaterial({ color: '#d9e5fc', emissive: '#a9c6ff', roughness: 0.35 }), 1.8, 0.25)
     : glowMat('#ffb347', '#ff8a1f', 2.4, 1.1, smooth),
 };
 
@@ -58,184 +194,226 @@ function mesh(parent, geo, material, x = 0, y = 0, z = 0) {
   return m;
 }
 
+/** One kuwagata horn: a flat blade sweeping up and out, ending in a hooked tip. */
+function hornGeometry() {
+  const s = new THREE.Shape();
+  s.moveTo(0.03, -0.01);
+  s.bezierCurveTo(0.17, 0.0, 0.27, 0.1, 0.3, 0.24); // outer edge rising
+  s.bezierCurveTo(0.31, 0.3, 0.31, 0.34, 0.34, 0.37); // up into the head of the hook
+  s.bezierCurveTo(0.38, 0.41, 0.45, 0.41, 0.48, 0.36); // rounded crown, outwards
+  s.bezierCurveTo(0.44, 0.35, 0.42, 0.33, 0.41, 0.3); // beak tip turning back
+  s.bezierCurveTo(0.38, 0.31, 0.35, 0.3, 0.3, 0.33); // under the hook
+  s.bezierCurveTo(0.24, 0.35, 0.21, 0.28, 0.19, 0.2); // inner edge down
+  s.bezierCurveTo(0.16, 0.12, 0.1, 0.09, 0.0, 0.08);
+  s.lineTo(0.03, -0.01);
+  const geo = new THREE.ExtrudeGeometry(s, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 2, curveSegments: 10 });
+  geo.translate(0, 0, -0.015);
+  return geo;
+}
+
 function buildHead(head, J) {
-  // Black shell with the white face plate bulging out at the front
-  const shell = mesh(head, new THREE.SphereGeometry(0.34, 32, 24), M.black, 0, 0.3, 0);
+  // Periwinkle shell with the white face plate bulging out at the front
+  const shell = mesh(head, new THREE.SphereGeometry(0.34, 32, 24), M.body, 0, 0.3, 0);
   shell.scale.set(1.12, 0.95, 1.0);
   const face = mesh(head, new THREE.SphereGeometry(0.31, 32, 24), M.white, 0, 0.25, 0.08);
   face.scale.set(1.08, 0.8, 0.95);
 
-  // Eyes: black lenses ringed with glowing amber
+  // Eyes: big blue lenses in a pale ring
   J.eyes = [];
   for (const s of [-1, 1]) {
-    const eye = pivot(head, s * 0.125, 0.28, 0.343);
+    const eye = pivot(head, s * 0.128, 0.27, 0.343);
     eye.rotation.y = s * 0.32;
-    const lens = mesh(eye, new THREE.CylinderGeometry(0.072, 0.072, 0.03, 28), M.eyeBlack);
+    const lens = mesh(eye, new THREE.CylinderGeometry(0.078, 0.078, 0.03, 32), M.lens);
     lens.rotation.x = Math.PI / 2;
-    mesh(eye, new THREE.TorusGeometry(0.082, 0.016, 10, 32), M.eyeRing, 0, 0, 0.012);
-    const shine = mesh(eye, new THREE.SphereGeometry(0.014, 8, 6), mat('#ffffff', { ...smooth, emissive: '#ffffff', emissiveIntensity: 0.6 }), -0.025, 0.025, 0.02);
+    mesh(eye, new THREE.TorusGeometry(0.086, 0.017, 12, 36), M.eyeRing, 0, 0, 0.01);
+    const shine = mesh(eye, new THREE.SphereGeometry(0.016, 8, 6), matExact('#ffffff', { ...smooth, emissive: '#ffffff', emissiveIntensity: 0.5 }), -0.028, 0.028, 0.018);
     shine.scale.z = 0.4;
     J.eyes.push(eye);
   }
-  // Little mouth that lights up when Bim speaks
-  J.mouthMat = new THREE.MeshStandardMaterial({ color: tint('#3a3a40'), emissive: tintGlow('#ff8a1f'), emissiveIntensity: 0, roughness: 0.3 });
-  const mouth = mesh(head, new THREE.CapsuleGeometry(0.028, 0.05, 4, 12), J.mouthMat, 0, 0.13, 0.355);
+  // Forehead camera dot
+  const dot = mesh(head, new THREE.CylinderGeometry(0.022, 0.022, 0.02, 16), M.lens, 0, 0.395, 0.318);
+  dot.rotation.x = Math.PI / 2 - 0.5;
+  // Mouth that lights up when Bim speaks
+  J.mouthMat = new THREE.MeshStandardMaterial({ color: PASTEL ? '#7f9be0' : tint('#3a3a40'), emissive: tintGlow('#ff8a1f'), emissiveIntensity: 0, roughness: 0.3 });
+  const mouth = mesh(head, new THREE.CapsuleGeometry(0.028, 0.05, 6, 16), J.mouthMat, 0, 0.14, 0.348);
   mouth.rotation.z = Math.PI / 2;
-  mouth.scale.z = 0.5;
+  mouth.scale.set(1, 1, 0.5);
+  mouth.rotation.x = 0.3;
 
-  // Ear discs
+  // Ear discs (mostly tucked under the helmet flaps)
   for (const s of [-1, 1]) {
-    const ear = mesh(head, new THREE.CylinderGeometry(0.15, 0.15, 0.06, 32), M.gold, s * 0.36, 0.29, -0.02);
+    const ear = mesh(head, new THREE.CylinderGeometry(0.14, 0.14, 0.06, 32), M.joint, s * 0.36, 0.29, -0.02);
     ear.rotation.z = Math.PI / 2;
-    const rim = mesh(head, new THREE.TorusGeometry(0.15, 0.018, 8, 32), M.orange, s * 0.39, 0.29, -0.02);
-    rim.rotation.y = Math.PI / 2;
   }
 
   // --- Kabuto ---------------------------------------------------------------
   const helm = pivot(head, 0, 0.3, 0);
   const bowlG = pivot(helm);
-  bowlG.scale.set(1.12, 0.98, 1.04);
-  mesh(bowlG, new THREE.SphereGeometry(0.36, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.36), M.darkLacquer);
-  // Raised ribs on the bowl (suji-bachi), each a meridian arc from the crown to the rim
-  for (let i = 0; i < 6; i++) {
-    const rib = mesh(bowlG, new THREE.TorusGeometry(0.359, 0.006, 4, 24, Math.PI * 0.36), M.gold);
-    rib.rotation.set(0, (i / 6) * Math.PI * 2, Math.PI / 2 - Math.PI * 0.36);
-  }
-  // Golden rim (koshimaki) where bowl meets the visor
-  const rimY = 0.36 * Math.cos(Math.PI * 0.36) * 0.98;
-  const rimR = 0.36 * Math.sin(Math.PI * 0.36);
-  const band = mesh(helm, new THREE.TorusGeometry(rimR, 0.022, 8, 40), M.gold, 0, rimY, 0);
+  bowlG.scale.set(1.1, 1.0, 1.04);
+  mesh(bowlG, new THREE.SphereGeometry(0.365, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.36), M.helm);
+  // Raised centre ridge, front to back
+  const ridge = mesh(bowlG, new THREE.TorusGeometry(0.366, 0.012, 6, 32, Math.PI * 0.72), M.helm);
+  ridge.rotation.set(0, Math.PI / 2, Math.PI / 2 - Math.PI * 0.36);
+  const rimY = 0.365 * Math.cos(Math.PI * 0.36);
+  const rimR = 0.365 * Math.sin(Math.PI * 0.36);
+  const band = mesh(helm, new THREE.TorusGeometry(rimR, 0.024, 10, 48), M.armorPlain, 0, rimY, 0);
   band.rotation.x = Math.PI / 2;
-  band.scale.set(1.12, 1.04, 1);
-  mesh(helm, new THREE.TorusGeometry(0.05, 0.014, 8, 16), M.gold, 0, 0.36, 0).rotation.x = Math.PI / 2; // tehen
+  band.scale.set(1.1, 1.04, 1);
+  // Short visor
+  const visor = mesh(helm, new THREE.CylinderGeometry(0.41, 0.41, 0.03, 32, 1, false, -Math.PI * 0.3, Math.PI * 0.6), M.helm, 0, rimY + 0.005, 0);
+  visor.scale.set(1.02, 1, 0.92);
+  visor.rotation.x = -0.3;
 
-  // Visor peak (mabizashi)
-  const visor = mesh(helm, new THREE.CylinderGeometry(0.4, 0.4, 0.022, 32, 1, false, -Math.PI * 0.3, Math.PI * 0.6), M.darkLacquer, 0, rimY, 0);
-  visor.scale.set(1.0, 1, 0.9);
-  visor.rotation.x = -0.28;
-
-  // Neck guard (shikoro): flared lacquer tiers around the back
-  for (let k = 0; k < 3; k++) {
-    const r0 = 0.37 + k * 0.03;
-    const tier = mesh(
-      helm,
-      new THREE.CylinderGeometry(r0, r0 + 0.035, 0.09, 32, 1, true, Math.PI * 0.3, Math.PI * 1.4),
-      k % 2 ? M.lacquer2 : M.lacquer3,
-      0,
-      rimY - 0.06 - k * 0.075,
-      -0.01,
-    );
-    tier.scale.x = 1.08;
-    const lace = mesh(helm, new THREE.TorusGeometry(r0 + 0.035, 0.006, 4, 32, Math.PI * 1.4), M.gold, 0, rimY - 0.105 - k * 0.075, -0.01);
-    lace.rotation.set(Math.PI / 2, 0, -Math.PI * 1.2);
-    lace.scale.set(1.08, 1, 1);
+  // Neck guard (shikoro): lamellar tiers around sides and back
+  for (let k = 0; k < 2; k++) {
+    const r0 = 0.37 + k * 0.018;
+    const tier = mesh(helm, new THREE.CylinderGeometry(r0, r0 + 0.02, 0.1, 32, 1, true, Math.PI * 0.34, Math.PI * 1.32), M.armorSide, 0, rimY - 0.06 - k * 0.09, -0.02);
+    tier.scale.set(1.1, 1, 1.02);
   }
-  // Turned-back flaps (fukigaeshi) with a gold crest
+  // Turned-back flaps (fukigaeshi)
   for (const s of [-1, 1]) {
-    const f = pivot(helm, s * 0.4, rimY - 0.07, 0.15);
-    f.rotation.y = s * 1.05;
-    rbox(f, 0.15, 0.15, 0.03, M.lacquer, 0, 0, 0, 0.02);
-    const mon = mesh(f, new THREE.CylinderGeometry(0.035, 0.035, 0.02, 16), M.gold, 0, 0, 0.02);
-    mon.rotation.x = Math.PI / 2;
+    const f = pivot(helm, s * 0.4, rimY - 0.06, 0.14);
+    f.rotation.y = s * 1.0;
+    rbox(f, 0.17, 0.2, 0.035, M.armor, 0, -0.03, 0, 0.03);
   }
-  // Front crest (maedate): golden crescent moon on a sun disc
-  const crest = pivot(helm, 0, rimY + 0.07, 0.33);
-  crest.rotation.x = -0.12;
-  const disc = mesh(crest, new THREE.CylinderGeometry(0.06, 0.06, 0.025, 24), M.gold);
-  disc.rotation.x = Math.PI / 2;
-  const sun = mesh(crest, new THREE.CylinderGeometry(0.035, 0.035, 0.03, 24), M.lacquer, 0, 0, 0.004);
-  sun.rotation.x = Math.PI / 2;
-  const moon = mesh(crest, new THREE.TorusGeometry(0.3, 0.028, 8, 40, Math.PI), M.gold, 0, 0.02, 0);
-  moon.scale.set(1.15, 0.85, 0.6);
+  // Front crest: hooked kuwagata horns rising from a round boss
+  const crest = pivot(helm, 0, rimY + 0.05, 0.33);
+  crest.rotation.x = -0.18;
+  const horn = hornGeometry();
+  for (const s of [-1, 1]) {
+    const h = mesh(crest, horn, M.horn, 0, 0.03, 0);
+    h.scale.set(s * 0.95, 0.95, 1.3);
+  }
+  const boss = mesh(crest, new THREE.TorusGeometry(0.055, 0.022, 12, 28), M.horn, 0, 0.03, 0.01);
+  boss.scale.z = 0.8;
+  const bossDisc = mesh(crest, new THREE.CylinderGeometry(0.04, 0.04, 0.03, 20), M.accent, 0, 0.03, 0.005);
+  bossDisc.rotation.x = Math.PI / 2;
+  // Plume (a tuft swept back over the crown)
+  const plumePath = [
+    [0.0, 0.35, -0.05, 0.05],
+    [0.0, 0.42, -0.1, 0.06],
+    [0.0, 0.45, -0.17, 0.065],
+    [0.0, 0.43, -0.24, 0.06],
+    [0.0, 0.38, -0.29, 0.05],
+    [0.0, 0.31, -0.32, 0.04],
+    [0.0, 0.25, -0.33, 0.03],
+  ];
+  for (const [x, y, z, r] of plumePath) {
+    const b = mesh(helm, new THREE.SphereGeometry(r, 14, 10), M.plume, x, y, z);
+    b.scale.set(0.9, 1, 1.25);
+  }
 }
 
-function buildArm(parent, s, J) {
+function buildArm(parent, s) {
   const shoulder = pivot(parent, s * 0.37, 0.6, 0);
-  mesh(shoulder, new THREE.SphereGeometry(0.1, 20, 14), M.black);
-  rbox(shoulder, 0.15, 0.28, 0.17, M.black, s * 0.01, -0.15, 0, 0.06);
+  mesh(shoulder, new THREE.SphereGeometry(0.1, 20, 14), M.joint);
+  rbox(shoulder, 0.15, 0.28, 0.17, M.body, s * 0.01, -0.15, 0, 0.06);
   const elbow = pivot(shoulder, s * 0.01, -0.29, 0);
-  mesh(elbow, new THREE.SphereGeometry(0.07, 16, 10), M.gray);
-  rbox(elbow, 0.14, 0.24, 0.16, M.black, 0, -0.13, 0, 0.06);
-  // C-shaped white hand
+  mesh(elbow, new THREE.SphereGeometry(0.07, 16, 10), M.joint);
+  // Bracer (kote): white cuff with two raised bands
+  mesh(elbow, new THREE.CylinderGeometry(0.085, 0.095, 0.22, 24), M.white, 0, -0.13, 0);
+  for (const y of [-0.06, -0.2]) {
+    const ring = mesh(elbow, new THREE.TorusGeometry(0.093, 0.014, 8, 24), M.armorPlain, 0, y, 0);
+    ring.rotation.x = Math.PI / 2;
+  }
+  // Chunky C-shaped white hand
   const hand = pivot(elbow, 0, -0.31, 0.01);
-  const c = mesh(hand, new THREE.TorusGeometry(0.065, 0.034, 12, 24, Math.PI * 1.45), M.white);
-  c.rotation.set(0, Math.PI / 2, Math.PI * 0.27 + Math.PI);
+  const c = mesh(hand, new THREE.TorusGeometry(0.06, 0.04, 14, 24, Math.PI * 1.4), M.white);
+  c.rotation.set(0, Math.PI / 2, Math.PI * 0.3 + Math.PI);
   return { shoulder, elbow };
 }
 
 function buildSode(parent, s) {
-  // Lacquered shoulder guard, three lamellar plates laced in gold
-  const g = pivot(parent, s * 0.42, 0.7, 0);
-  g.rotation.z = -s * 0.45;
-  for (let k = 0; k < 3; k++) {
-    rbox(g, 0.24, 0.075, 0.3, k === 1 ? M.lacquer2 : M.lacquer, s * k * 0.012, -k * 0.072, 0, 0.025);
-    rbox(g, 0.245, 0.012, 0.305, M.gold, s * k * 0.012, -k * 0.072 - 0.035, 0, 0.004);
-  }
+  // Shoulder guard: lamellar plates hanging from a rounded cap
+  const g = pivot(parent, s * 0.42, 0.71, 0);
+  g.rotation.z = -s * 0.5;
+  rbox(g, 0.22, 0.08, 0.3, M.armorPlain, 0, 0.02, 0, 0.035);
+  for (let k = 0; k < 3; k++) rbox(g, 0.24 + k * 0.01, 0.075, 0.31 + k * 0.01, M.armor, s * k * 0.012, -0.05 - k * 0.07, 0, 0.025);
   return g;
 }
 
 function buildLeg(parent, s) {
   const hip = pivot(parent, s * 0.14, 0.78, 0);
-  rbox(hip, 0.2, 0.26, 0.24, M.black, 0, -0.13, 0, 0.06);
+  rbox(hip, 0.2, 0.26, 0.24, M.body, 0, -0.13, 0, 0.06);
   const knee = pivot(hip, 0, -0.27, 0);
-  rbox(knee, 0.22, 0.36, 0.27, M.black, 0, -0.17, 0, 0.07);
-  rbox(knee, 0.235, 0.06, 0.285, M.white, 0, -0.07, 0, 0.025);
-  mesh(knee, new THREE.CylinderGeometry(0.06, 0.06, 0.06, 12), M.gray, 0, -0.37, 0);
+  rbox(knee, 0.19, 0.36, 0.23, M.body, 0, -0.17, 0, 0.07);
+  // Knee cap and ribbed shin guard (suneate)
+  rbox(knee, 0.2, 0.1, 0.08, M.armorPlain, 0, 0.0, 0.12, 0.04);
+  mesh(knee, new THREE.CylinderGeometry(0.13, 0.135, 0.27, 24, 1, true), M.shin, 0, -0.2, 0.01);
+  for (const y of [-0.07, -0.33]) {
+    const band = mesh(knee, new THREE.TorusGeometry(0.133, 0.013, 8, 28), M.armorPlain, 0, y, 0.01);
+    band.rotation.x = Math.PI / 2;
+  }
+  // Chunky shoe: white upper on a thick blue sole
   const foot = pivot(knee, 0, -0.44, 0);
-  rbox(foot, 0.26, 0.11, 0.4, M.white, 0, 0.0, 0.04, 0.05);
-  rbox(foot, 0.25, 0.025, 0.39, M.orange, 0, -0.065, 0.04, 0.01);
+  rbox(foot, 0.25, 0.08, 0.36, M.white, 0, 0.02, 0.04, 0.04);
+  rbox(foot, 0.28, 0.075, 0.42, M.sole, 0, -0.05, 0.05, 0.03);
   return { hip, knee };
 }
 
 function buildTorso(hips, J) {
-  rbox(hips, 0.46, 0.18, 0.3, M.black, 0, 0.04, 0, 0.06);
-  rbox(hips, 0.6, 0.58, 0.4, M.black, 0, 0.42, 0, 0.12);
-  // White chest plate
-  const chest = mesh(hips, new THREE.CapsuleGeometry(0.16, 0.2, 8, 20), M.white, 0, 0.4, 0.16);
-  chest.scale.set(1, 1, 0.38);
-  const badge = sign(hips, 'ビム', 0.2, 0.075, { bg: '#ff7a1a', fg: '#ffffff', weight: 900, depth: 0.01 }, 0, 0.5, 0.222);
-  badge.rotation.x = -0.12;
+  rbox(hips, 0.46, 0.18, 0.3, M.body, 0, 0.04, 0, 0.06);
+  rbox(hips, 0.58, 0.58, 0.38, M.body, 0, 0.42, 0, 0.12);
+  // White breastplate (dō) with an embossed name plate
+  rbox(hips, 0.5, 0.52, 0.16, M.white, 0, 0.44, 0.13, 0.08);
+  rbox(hips, 0.22, 0.075, 0.02, M.accent, 0, 0.55, 0.215, 0.02);
+  sign(hips, 'BIM', 0.2, 0.06, { bg: PASTEL ? '#eef3ff' : '#ff7a1a', fg: PASTEL ? '#7f9be0' : '#ffffff', weight: 700, depth: 0.012 }, 0, 0.522, 0.222);
+  // Shoulder cords tying the breastplate
+  for (const s of [-1, 1]) {
+    const cord = mesh(hips, new THREE.TorusGeometry(0.05, 0.014, 8, 18), M.rope, s * 0.22, 0.7, 0.06);
+    cord.rotation.y = Math.PI / 2;
+  }
 
-  // Obi sash and knot
-  rbox(hips, 0.62, 0.09, 0.42, M.obi, 0, 0.16, 0, 0.04);
-  rbox(hips, 0.1, 0.1, 0.06, M.obi, -0.16, 0.16, 0.22, 0.03);
+  // Rope obi with a knot and hanging tassels
+  rbox(hips, 0.62, 0.08, 0.42, M.rope, 0, 0.17, 0, 0.04);
+  for (const dx of [-0.04, 0.04]) {
+    const loop = mesh(hips, new THREE.TorusGeometry(0.035, 0.015, 8, 16), M.rope, -0.06 + dx * 1.4, 0.18, 0.22);
+    loop.rotation.z = dx * 10;
+  }
+  for (const dx of [-0.09, -0.04]) {
+    mesh(hips, new THREE.CylinderGeometry(0.011, 0.011, 0.18, 6), M.rope, dx, 0.07, 0.225);
+    mesh(hips, new THREE.SphereGeometry(0.018, 8, 6), M.rope, dx, -0.02, 0.225);
+  }
 
-  // Waist plates (kusazuri)
+  // Waist plates (kusazuri): big lamellar plates in front, smaller round the sides
   const plates = [
-    [-0.13, 0.2, 0],
-    [0.13, 0.2, 0],
-    [0.3, 0, Math.PI / 2],
-    [-0.3, 0, -Math.PI / 2],
-    [-0.13, -0.2, Math.PI],
-    [0.13, -0.2, Math.PI],
+    [-0.13, 0.2, 0, 0.24],
+    [0.13, 0.2, 0, 0.24],
+    [0.3, 0, Math.PI / 2, 0.22],
+    [-0.3, 0, -Math.PI / 2, 0.22],
+    [-0.13, -0.2, Math.PI, 0.22],
+    [0.13, -0.2, Math.PI, 0.22],
   ];
   J.kusazuri = [];
-  for (const [x, z, ry] of plates) {
-    const p = pivot(hips, x, 0.12, z);
-    p.rotation.set(-0.22, ry, 0, 'YXZ');
-    rbox(p, 0.2, 0.22, 0.03, M.lacquer, 0, -0.11, 0.02, 0.012);
-    for (const y of [-0.05, -0.12, -0.19]) rbox(p, 0.205, 0.008, 0.034, M.gold, 0, y, 0.022, 0.003);
+  for (const [x, z, ry, w] of plates) {
+    const p = pivot(hips, x, 0.13, z);
+    p.rotation.set(-0.2, ry, 0, 'YXZ');
+    rbox(p, w, 0.27, 0.035, M.armor, 0, -0.13, 0.02, 0.02);
+    rbox(p, w + 0.01, 0.03, 0.045, M.armorPlain, 0, -0.005, 0.02, 0.012);
     J.kusazuri.push(p);
   }
 
-  // Katana tucked into the obi on the left hip, handle forward
-  const katana = pivot(hips, 0.31, 0.16, 0.04);
-  katana.rotation.set(-0.38, 0.12, 0);
-  rbox(katana, 0.045, 0.055, 0.9, M.scabbard, 0, 0, -0.28, 0.02);
-  rbox(katana, 0.05, 0.06, 0.04, M.gold, 0, 0, -0.73, 0.01); // kojiri
-  const tsuba = mesh(katana, new THREE.CylinderGeometry(0.065, 0.065, 0.02, 20), M.gold, 0, 0, 0.18);
+  // Katana worn across the front: hilt to the front, pointing over the belly
+  const katana = pivot(hips, 0.2, 0.2, 0.17);
+  katana.rotation.set(-0.12, -1.0, 0, 'YXZ');
+  rbox(katana, 0.045, 0.055, 0.95, M.saya, 0, 0, -0.42, 0.02);
+  rbox(katana, 0.05, 0.06, 0.035, M.armorPlain, 0, 0, -0.88, 0.012); // kojiri
+  const tsuba = mesh(katana, new THREE.CylinderGeometry(0.065, 0.065, 0.022, 24), M.saya, 0, 0, 0.07);
   tsuba.rotation.x = Math.PI / 2;
-  rbox(katana, 0.042, 0.05, 0.26, M.hilt, 0, 0, 0.32, 0.015);
-  for (let k = 0; k < 5; k++) rbox(katana, 0.046, 0.054, 0.012, M.black, 0, 0, 0.21 + k * 0.05, 0.004);
-  rbox(katana, 0.048, 0.056, 0.03, M.gold, 0, 0, 0.46, 0.01); // kashira
+  rbox(katana, 0.044, 0.052, 0.28, M.hilt, 0, 0, 0.22, 0.016);
+  rbox(katana, 0.05, 0.058, 0.03, M.saya, 0, 0, 0.37, 0.012); // kashira
 
-  // Back banner (sashimono): 先生
-  const pole = mesh(hips, new THREE.CylinderGeometry(0.012, 0.012, 1.15, 8), M.black, 0.06, 0.95, -0.23);
-  pole.rotation.z = -0.05;
-  const flag = sign(hips, '先生', 0.2, 0.46, { bg: '#f4efe4', fg: '#b3202b', vertical: true, depth: 0.012, backFace: true, border: '#b3202b' }, 0.06, 1.02, -0.345, Math.PI / 2);
+  // Back banner (sashimono): L-shaped pole with a paw-print flag
+  const pole = pivot(hips, 0.26, 0.55, -0.24);
+  pole.rotation.z = -0.12;
+  mesh(pole, new THREE.CylinderGeometry(0.014, 0.014, 1.15, 8), M.accent, 0, 0.5, 0);
+  mesh(pole, new THREE.CylinderGeometry(0.012, 0.012, 0.36, 8), M.accent, 0.18, 1.06, 0).rotation.z = Math.PI / 2;
+  for (const x of [0, 0.36]) mesh(pole, new THREE.SphereGeometry(0.02, 8, 6), M.accent, x, 1.07, 0);
+  const flag = mesh(pole, new THREE.PlaneGeometry(0.3, 0.56), M.flag, 0.18, 0.76, 0);
+  flag.rotation.y = 0.35;
   J.flag = flag;
 
-  mesh(hips, new THREE.CylinderGeometry(0.07, 0.08, 0.1, 16), M.gray, 0, 0.74, 0); // neck
+  mesh(hips, new THREE.CylinderGeometry(0.07, 0.08, 0.1, 16), M.joint, 0, 0.74, 0); // neck
 }
 
 const ease = (x) => x * x * (3 - 2 * x);
