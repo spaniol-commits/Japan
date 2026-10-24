@@ -16,7 +16,13 @@ if ('speechSynthesis' in window) {
  * Speak Japanese with the browser voice. `onStart`/`onEnd` drive Bim's talking
  * animation; without speech support they still fire, timed to the text length.
  */
-export function speak(text, { pitch = 1, rate = 0.85, onStart, onEnd } = {}) {
+/** All installed Japanese voices (the NPCs use a different one from Bim when there is one). */
+export function japaneseVoices() {
+  if (!('speechSynthesis' in window)) return [];
+  return speechSynthesis.getVoices().filter((v) => v.lang?.toLowerCase().startsWith('ja'));
+}
+
+export function speak(text, { pitch = 1, rate = 0.85, voice = null, lang = 'ja-JP', onStart, onEnd } = {}) {
   if (!('speechSynthesis' in window)) {
     onStart?.();
     setTimeout(() => onEnd?.(), 400 + text.length * 120);
@@ -24,8 +30,9 @@ export function speak(text, { pitch = 1, rate = 0.85, onStart, onEnd } = {}) {
   }
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'ja-JP';
-  if (jaVoice) u.voice = jaVoice;
+  u.lang = lang;
+  if (voice) u.voice = voice;
+  else if (lang.startsWith('ja') && jaVoice) u.voice = jaVoice;
   u.rate = rate;
   u.pitch = pitch;
   let ended = false;

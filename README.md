@@ -11,15 +11,30 @@ It's part Edo-period old town and part modern Tokyo, split by a river, on a 600 
 
 ## The game
 
-Press **▶ Play** on the start screen. It turns on fullscreen and music and opens the **stamp book (御朱印帳)**. Pick a place and Bim pops up there to play the person you'd meet: the sushi chef, the police officer, the onsen receptionist and so on.
+Press **▶ Play** on the start screen. It turns on fullscreen and music and opens the **stamp book (御朱印帳)**. Pick a place and two characters pop up there. **Bim** is your interpreter, and the **person who works there** (the sushi chef, police officer, onsen receptionist and so on) is dressed for the job and has their own voice.
 
-- Bim speaks every line aloud with the browser's Japanese voice. The **ro** and **EN** buttons show or hide romaji and English, and 🔊 repeats a line.
-- Each scene has three turns. Answer by tapping the right phrase, or turn on **Answer by speaking 🎤** and say it in Japanese (this uses speech recognition in Chrome or Edge). Your chosen phrase is spoken back so you hear the right pronunciation.
-- A wrong answer gets a short explanation, for example that hitotsu counts things and hitori counts people. After two misses the answer is shown.
-- A right answer on the first try is worth 10 XP, a later right answer 5 XP, and finishing a scene adds 20 XP. Each place gives a stamp with 1–3 stars, and every 100 XP is a new level. Progress is saved in your browser.
-- Sound effects and a soft pentatonic koto melody are synthesised with Web Audio, so there are no audio files. Toggle the music with 🎵 and fullscreen with ⛶.
+Each exchange in a scene:
 
-Scenes live in [`src/game/lessons.js`](src/game/lessons.js), and the game layer is in [`src/game/`](src/game).
+1. **You say what you want in English.** Press 🎤 *Speak English*, type it, or tap a suggestion.
+2. **Bim says it in Japanese**, with romaji, an English gloss and sometimes a grammar tip.
+3. **You repeat it in Japanese.** Press 🎤 *Say it* to get a pronunciation score, or *I said it out loud* when there is no microphone.
+4. **The person answers in Japanese**, with English subtitles.
+
+A scene lasts up to four exchanges, or until it ends naturally (you pay, say goodbye and so on). Each exchange is worth 10–20 XP depending on pronunciation, and finishing adds 20. The stamp gets 1–3 stars from your average pronunciation, and every 100 XP is a new level. Progress is saved in your browser.
+
+### Conversation engine
+
+Bim needs a language model to translate anything you say. [`src/game/tutor.js`](src/game/tutor.js) picks the best one available:
+
+| Where you play | Engine |
+| --- | --- |
+| The published page on claude.ai | Claude, through your own Claude account (asks your permission the first time) |
+| Locally or the single HTML file, with an API key entered on the start screen | Claude (`claude-opus-5-5`) through the Anthropic SDK. The key stays in your browser's local storage. |
+| Anywhere, with neither | Offline phrasebook: about 100 phrases built from the scene scripts, matched to what you say |
+
+Speech uses the browser: Japanese and English text-to-speech, and speech recognition (Chrome or Edge) for 🎤. Published pages on claude.ai can't use the microphone, so you type there. To speak, use the single HTML file.
+
+Sound effects and a soft pentatonic koto melody are synthesised with Web Audio. Toggle music with 🎵 and fullscreen with ⛶. Scenes, roles and openings are in [`src/game/lessons.js`](src/game/lessons.js), and the townspeople are in [`src/trainer/npc.js`](src/trainer/npc.js).
 
 ## Controls
 

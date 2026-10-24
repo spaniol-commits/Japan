@@ -140,7 +140,7 @@ async function main() {
       lodTimer = 0.25;
       for (const m of stats.details) m.visible = m.geometry.boundingSphere.center.distanceTo(stage.camera.position) < 260;
     }
-    game.update(dt);
+    game.update(dt, timer.getElapsed());
     bim.update(dt, timer.getElapsed(), stage.camera);
     stage.update(dt);
   });
